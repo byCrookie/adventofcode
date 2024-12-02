@@ -27,57 +27,34 @@ public class Part2 : IPart
 
         measure.Now("Parsed");
 
-        var safeReports = new List<List<int>>();
-        foreach (var report in reports)
-        {
-            var isSafe = IsReportSafe(report.ToArray());
-            if (isSafe)
-            {
-                safeReports.Add(report);
-                Console.WriteLine($"Safe report: {string.Join(" ", report)}");
-            }
-            else
-            {
-                Console.WriteLine($"Unsafe report: {string.Join(" ", report)}");
-            }
-        }
-
-        var safeReportsCount = safeReports.Count;
+        var safeReportsCount = reports.Count(r => IsReportSafe(r.ToArray()));
         return Task.FromResult(new PartResult(safeReportsCount.ToString(), $"Safe reports: {safeReportsCount}"));
     }
 
     private static bool IsReportSafe(int[] report)
     {
-        var prevLevel = report[0];
-        var lastLevel = report[^1];
-        var directionChangeCount = 0;
-        var prevAssending = prevLevel < lastLevel;
-
+        var directionChanges = 0;
+        var prevDirection = Math.Sign(report[^1] - report[0]);
         for (var i = 1; i < report.Length; i++)
         {
-            var currentLevel = report[i];
-            var currentAssending = prevLevel < currentLevel;
-            var diff = Math.Abs(currentLevel - prevLevel);
+            var difference = report[i] - report[i - 1];
 
-            if (prevAssending != currentAssending || diff == 0)
+            if (Math.Abs(difference) is (> 3 or < 1) and not 0)
             {
-                directionChangeCount++;
-            }
-            
-            if (directionChangeCount > 2)
-            {
-                // difference is too big
                 return false;
             }
 
-            if (diff is > 3 or < 1 && diff != 0)
+            var direction = difference > 0 ? 1 : -1;
+            if (direction != prevDirection || difference == 0)
             {
-                // difference is too big
-                return false;
+                directionChanges++;
+                if (directionChanges > 2)
+                {
+                    return false;
+                }
             }
 
-            prevLevel = currentLevel;
-            prevAssending = currentAssending;
+            prevDirection = direction;
         }
 
         return true;

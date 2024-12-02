@@ -37,15 +37,13 @@ public class Part1 : IPart
         for (var i = 1; i < report.Length; i++)
         {
             var difference = report[i] - report[i - 1];
-            var direction = Math.Sign(difference);
-            var distance = Math.Abs(difference);
 
-            if (distance is > 3 or < 1)
+            if (Math.Abs(difference) is > 3 or < 1)
             {
                 return false;
             }
 
-            if (direction != onlyDirection)
+            if (Math.Sign(difference) != onlyDirection)
             {
                 return false;
             }
