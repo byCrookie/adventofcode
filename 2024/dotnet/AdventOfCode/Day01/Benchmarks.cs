@@ -4,7 +4,7 @@ using BenchmarkDotNet.Attributes;
 namespace AdventOfCode.Day01;
 
 [MemoryDiagnoser(false)]
-public class BenchmarksDay01
+public class Benchmarks
 {
     private readonly IMeasure _measure = new NoneMeasure();
 

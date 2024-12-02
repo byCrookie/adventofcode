@@ -1,11 +1,11 @@
 ﻿using AdventOfCode.Days;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AdventOfCode.Day01;
+namespace AdventOfCode.Day02;
 
-public static class Day01Module
+public static class Module
 {
-    public static void AddDay01(this IServiceCollection services)
+    public static void AddDay02(this IServiceCollection services)
     {
         services.AddTransient<IPart, Part1>();
         services.AddTransient<IPart, Part2>();

@@ -1,4 +1,5 @@
 ﻿using AdventOfCode.Day01;
+using AdventOfCode.Day02;
 using AdventOfCode.Measure;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,5 +12,6 @@ public static class Module
         services.AddMeasure();
         
         services.AddDay01();
+        services.AddDay02();
     }
 }
