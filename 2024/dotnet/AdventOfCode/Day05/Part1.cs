@@ -26,47 +26,39 @@ public class Part1 : IPart
 
         measure.Now("Parsed");
 
-        var ruleSet = new Dictionary<int, List<int>>();
-        foreach (var rule in rules)
-        {
-            if (!ruleSet.TryGetValue(rule.Prev, out var value))
-            {
-                value = [];
-                ruleSet[rule.Prev] = value;
-            }
-
-            value.Add(rule.After);
-        }
-
-        Console.WriteLine($"Ruleset: {string.Join(", ", ruleSet)}");
-        measure.Now("Ordered");
-
-        var validUpdates = new List<List<int>>();
+        var invalidUpdates = new List<List<int>>();
         foreach (var update in updates)
         {
-            var valid = true;
-            for (var i = 1; i < update.Count; i++)
+            foreach (var rule in rules)
             {
-                var prev = update[i - 1];
-                var after = update[i];
-                if (ruleSet.TryGetValue(prev, out var value) && value.Contains(after))
+                var prevIndex = update.IndexOf(rule.Prev);
+                var afterIndex = update.IndexOf(rule.After);
+
+                if (prevIndex == -1 || afterIndex == -1)
                 {
                     continue;
                 }
 
-                valid = false;
-                break;
-            }
+                if (prevIndex <= afterIndex)
+                {
+                    continue;
+                }
 
-            if (valid)
-            {
-                validUpdates.Add(update);
+                update.RemoveAt(prevIndex);
+                update.Insert(afterIndex, rule.Prev);
+
+                if (!invalidUpdates.Contains(update))
+                {
+                    invalidUpdates.Add(update);
+                }
+
+                break;
             }
         }
 
         measure.Now("Validated");
 
-        var sum = validUpdates.Sum(u => u[(int)Math.Floor((double)u.Count / 2)]);
+        var sum = updates.Except(invalidUpdates).Sum(u => u[(int)Math.Floor((double)u.Count / 2)]);
         return Task.FromResult(new PartResult($"{sum}", $"Sum of all multiplications is {sum}"));
     }
 
