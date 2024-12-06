@@ -28,7 +28,7 @@ public class Part1 : IPart
             new(-1, 0)
         };
 
-        var positions = new List<Position>();
+        var positions = new HashSet<Position>();
         var current = GetCurrentPosition(field);
 
         while (InBounds(field, current.Position))
@@ -45,9 +45,8 @@ public class Part1 : IPart
             current += current.Direction;
         }
 
-        var distinctPositions = positions.Distinct().Count();
-        return Task.FromResult(
-            new PartResult($"{distinctPositions}", $"Count of visited positions {distinctPositions}"));
+        measure.Now("Finish");
+        return Task.FromResult(new PartResult($"{positions.Count}", $"Count of visited positions {positions.Count}"));
     }
 
     private static bool InBounds(char[][] field, Position position)
@@ -71,7 +70,7 @@ public class Part1 : IPart
         throw new InvalidOperationException("No starting position found");
     }
 
-    private record Current(Position Position, Direction Direction)
+    private record struct Current(Position Position, Direction Direction)
     {
         public static Current operator +(Current current, Direction direction)
         {
@@ -86,7 +85,7 @@ public class Part1 : IPart
         }
     };
 
-    private record Position(int X, int Y);
+    private record struct Position(int X, int Y);
 
-    private record Direction(int X, int Y);
+    private record struct Direction(int X, int Y);
 }
