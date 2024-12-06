@@ -83,10 +83,8 @@ rootCommand.SetHandler(async ctx =>
         : $"Running day {dayToRun} part {partToRun}");
 
     measure.Start();
-    measure.Now("Start");
     var result = await part.RunAsync(measure, input);
-    measure.Now("End");
-    measure.Stop();
+    measure.End();
 
     if (!string.IsNullOrWhiteSpace(result.Message) && result.Value != output)
     {

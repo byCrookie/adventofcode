@@ -6,15 +6,11 @@ public class NoneMeasure : IMeasure
     {
     }
 
-    public void Restart()
-    {
-    }
-
-    public void Stop()
-    {
-    }
-
     public void Now(string point)
+    {
+    }
+
+    public void End()
     {
     }
 }

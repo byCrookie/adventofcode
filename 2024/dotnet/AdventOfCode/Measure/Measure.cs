@@ -10,23 +10,20 @@ public class Measure(IConsole console) : IMeasure
 
     public void Start()
     {
+        console.WriteLine("Start");
         _measure.Start();
-    }
-
-    public void Stop()
-    {
-        _measure.Stop();
-    }
-
-    public void Restart()
-    {
-        _measure.Restart();
     }
 
     public void Now(string point)
     {
         _measure.Stop();
-        console.WriteLine($"{point} - {_measure.Elapsed.Humanize()}");
+        console.WriteLine($"{point} - {_measure.Elapsed.Humanize(2)}");
         _measure.Start();
+    }
+
+    public void End()
+    {
+        _measure.Stop();
+        console.WriteLine($"End - {_measure.Elapsed.Humanize(2)}");
     }
 }
