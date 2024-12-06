@@ -1,3 +1,4 @@
 ﻿<Solution>
   <Project Path="AdventOfCode\AdventOfCode.csproj" Type="Classic C#" />
+  <Project Path="AdventOfSpeed\AdventOfSpeed.csproj" Type="Classic C#" />
 </Solution>

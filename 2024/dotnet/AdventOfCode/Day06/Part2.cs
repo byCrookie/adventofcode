@@ -21,14 +21,18 @@ public class Part2 : IPart
     {
         var field = CreateField(input);
         measure.Now("Field");
-        var obstacles = ObstaclesToPlace(field).ToList();
+        var start = GetCurrentPosition(field);
+        measure.Now("Start Position");
+        var obstacles = ObstaclesToPlace(field, start);
         measure.Now("Obstacles");
 
         var loopCount = 0;
         var completed = 0;
         var cursor = Console.GetCursorPosition();
-        var start = GetCurrentPosition(field);
-        var tasks = obstacles.Select(obstacle => Task.Run(() =>
+        await Parallel.ForEachAsync(obstacles, new ParallelOptions
+        {
+            MaxDegreeOfParallelism = Environment.ProcessorCount
+        }, (obstacle, _) =>
         {
             if (IsLoop(field, start, obstacle))
             {
@@ -36,29 +40,40 @@ public class Part2 : IPart
             }
 
             completed++;
-            if (completed % 300 != 0) return;
+            if (completed % 300 != 0) return ValueTask.CompletedTask;
             Console.SetCursorPosition(cursor.Left, cursor.Top);
             Console.WriteLine($"{100.0 * completed / obstacles.Count:N}%");
-        }));
+            return ValueTask.CompletedTask;
+        });
 
-        await Task.WhenAll(tasks);
+        measure.Now("Finish");
+
         Console.SetCursorPosition(cursor.Left, cursor.Top);
         Console.WriteLine("100%".PadRight(20));
         return new PartResult($"{loopCount}", $"Count of additional obstacles that result in loop {loopCount}");
     }
 
-    private static IEnumerable<Position> ObstaclesToPlace(char[][] field)
+    private static List<Position> ObstaclesToPlace(char[][] field, Move start)
     {
-        for (var row = 0; row < field.Length; row++)
+        var positions = new HashSet<Position>();
+        var current = start;
+        var directionIndex = Directions.IndexOf(current.Direction);
+
+        while (InBounds(field, current.Position))
         {
-            for (var col = 0; col < field[row].Length; col++)
+            if (field[current.Position.Y][current.Position.X] == Obstacle)
             {
-                if (field[row][col] == '.' && field[row][col] != '^')
-                {
-                    yield return new Position(col, row);
-                }
+                current -= current.Direction;
+                directionIndex = (directionIndex + 1) % Directions.Count;
+                current += Directions[directionIndex];
+                continue;
             }
+
+            positions.Add(current.Position);
+            current += current.Direction;
         }
+
+        return positions.ToList();
     }
 
     private static char[][] CreateField(string input)
@@ -75,7 +90,7 @@ public class Part2 : IPart
 
     private static bool IsLoop(char[][] field, Move start, Position obstacle)
     {
-        var moves = new HashSet<Move>();
+        var moves = new HashSet<Move>(7000);
         var current = start;
         var directionIndex = Directions.IndexOf(current.Direction);
 

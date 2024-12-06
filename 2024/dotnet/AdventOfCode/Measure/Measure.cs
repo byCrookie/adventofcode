@@ -17,13 +17,13 @@ public class Measure(IConsole console) : IMeasure
     public void Now(string point)
     {
         _measure.Stop();
-        console.WriteLine($"{point} - {_measure.Elapsed.Humanize(2)}");
+        console.WriteLine($"{point} - {_measure.Elapsed.Humanize(3)}");
         _measure.Start();
     }
 
     public void End()
     {
         _measure.Stop();
-        console.WriteLine($"End - {_measure.Elapsed.Humanize(2)}");
+        console.WriteLine($"End - {_measure.Elapsed.Humanize(3)}");
     }
 }
