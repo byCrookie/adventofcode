@@ -8,8 +8,61 @@ namespace AdventOfCode.Day06;
 public class Part2 : IPart
 {
     private const char Obstacle = '#';
+    private object _lockObject = new();
 
-    public Task<PartResult> RunAsync(IMeasure measure, string input)
+    public async Task<PartResult> RunAsync(IMeasure measure, string input)
+    {
+        var field = CreateField(input);
+        measure.Now("Parsed");
+        var obstacles = ObstaclesToPlace(field);
+        measure.Now("Obstacles to place");
+
+        var loopCount = 0;
+        var completed = 0;
+        var cursor = Console.GetCursorPosition();
+        var tasks = obstacles.Select(obstacle => Task.Run(() =>
+        {
+            var copy = CopyField(field);
+            copy[obstacle.Y][obstacle.X] = Obstacle;
+
+            if (IsLoop(copy, GetCurrentPosition(copy)))
+            {
+                Interlocked.Increment(ref loopCount);
+            }
+
+            lock (_lockObject)
+            {
+                completed++;
+                if (completed % 10 != 0) return;
+                Console.SetCursorPosition(cursor.Left, cursor.Top);
+                Console.WriteLine($"{100.0 * completed / obstacles.Count:N}%");
+            }
+        }));
+
+        Console.SetCursorPosition(cursor.Left, cursor.Top);
+        Console.WriteLine("100%");
+        await Task.WhenAll(tasks);
+        return new PartResult($"{loopCount}", $"Count of additional obstacles that result in loop {loopCount}");
+    }
+
+    private static List<Position> ObstaclesToPlace(char[][] field)
+    {
+        var obstacles = new List<Position>();
+        for (var row = 0; row < field.Length; row++)
+        {
+            for (var col = 0; col < field[row].Length; col++)
+            {
+                if (field[row][col] == '.' && field[row][col] != '^')
+                {
+                    obstacles.Add(new Position(col, row));
+                }
+            }
+        }
+
+        return obstacles;
+    }
+
+    private static char[][] CreateField(string input)
     {
         var lines = input.Split(Environment.NewLine);
         var field = new char[lines.Length][];
@@ -18,32 +71,19 @@ public class Part2 : IPart
             field[i] = lines[i].ToCharArray();
         }
 
-        measure.Now("Parsed");
+        return field;
+    }
 
-        var loopCount = 0;
-        for (var row = 0; row < field.Length; row++)
+    private static char[][] CopyField(char[][] field)
+    {
+        var fieldCopy = new char[field.Length][];
+        for (var i = 0; i < field.Length; i++)
         {
-            for (var col = 0; col < field[row].Length; col++)
-            {
-                Console.WriteLine(
-                    $"Run loop detection for obstacle at {{X: {col.ToString(),-5}, Y: {row.ToString(),-5}}}");
-
-                if (field[row][col] == '.' && field[row][col] != '^')
-                {
-                    field[row][col] = Obstacle;
-
-                    if (IsLoop(field, GetCurrentPosition(field)))
-                    {
-                        loopCount++;
-                    }
-
-                    field[row][col] = '.';
-                }
-            }
+            fieldCopy[i] = new char[field[i].Length];
+            field[i].CopyTo(fieldCopy[i], 0);
         }
 
-        return Task.FromResult(
-            new PartResult($"{loopCount}", $"Count of additional obstacles that result in loop {loopCount}"));
+        return fieldCopy;
     }
 
     private static bool IsLoop(char[][] field, Move start)
@@ -92,6 +132,9 @@ public class Part2 : IPart
 
     private static void PrintField(char[][] field, Move move)
     {
+        Thread.Sleep(25);
+        Console.Clear();
+
         for (var row = 0; row < field.Length; row++)
         {
             for (var col = 0; col < field[row].Length; col++)
