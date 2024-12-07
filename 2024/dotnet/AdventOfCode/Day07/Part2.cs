@@ -14,50 +14,33 @@ public class Part2 : IPart
         (a, b) => long.Parse(string.Concat(a, b))
     ];
 
-    public async Task<PartResult> RunAsync(IMeasure measure, string input)
+    public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
-        var validTests = new List<long>();
-        foreach (var line in input.Split(Environment.NewLine))
-        {
-            var parts = line.Split(":");
-            var comp = long.Parse(parts[0]);
-            var numbers = parts[1].Split(" ", StringSplitOptions.RemoveEmptyEntries).Select(long.Parse).ToArray();
-            var valid = false;
-            foreach (var op in Operations)
-            {
-                valid |= Compare(comp, numbers, 1, numbers[0], op);
-            }
+        var sum = (
+                from line in input.Split(Environment.NewLine)
+                select line.Split(":")
+                into parts
+                let equationValue = long.Parse(parts[0])
+                let numbers = parts[1]
+                    .Split(" ", StringSplitOptions.RemoveEmptyEntries)
+                    .Select(long.Parse)
+                    .ToArray()
+                where Operations.Aggregate(false,
+                    (valid, operation) => valid | Compare(equationValue, numbers[1..], numbers[0], operation))
+                select equationValue)
+            .Sum();
 
-            if (valid)
-            {
-                validTests.Add(comp);
-            }
-        }
-
-        var sum = validTests.Sum();
-        return new PartResult($"{sum}", $"Count of additional obstacles that result in loop {sum}");
+        return Task.FromResult(new PartResult($"{sum}", $"Sum of valid equation values: {sum}"));
     }
 
-    private static bool Compare(long comp, long[] numbers, long index, long result, Func<long, long, long> operation)
+    private static bool Compare(long equationValue, long[] numbers, long result, Func<long, long, long> operation)
     {
-        if (index == numbers.Length)
+        if (numbers.Length == 0)
         {
-            if (result == comp)
-            {
-                return true;
-            }
-
-            return false;
+            return result == equationValue;
         }
 
-        var current = numbers[index];
-        result = operation(result, current);
-        var valid = false;
-        foreach (var op in Operations)
-        {
-            valid |= Compare(comp, numbers, index + 1, result, op);
-        }
-
-        return valid;
+        return Operations.Aggregate(false,
+            (valid, op) => valid | Compare(equationValue, numbers[1..], operation(result, numbers[0]), op));
     }
 }
