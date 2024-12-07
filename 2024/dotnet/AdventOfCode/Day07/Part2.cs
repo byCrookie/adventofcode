@@ -11,7 +11,7 @@ public class Part2 : IPart
     [
         (a, b) => a + b,
         (a, b) => a * b,
-        (a, b) => long.Parse(string.Concat(a, b))
+        (a, b) => long.Parse($"{a}{b}")
     ];
 
     public Task<PartResult> RunAsync(IMeasure measure, string input)
