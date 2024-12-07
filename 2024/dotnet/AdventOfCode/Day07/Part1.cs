@@ -21,13 +21,15 @@ public class Part1 : IPart
             var parts = line.Split(":");
             var comp = long.Parse(parts[0]);
             var numbers = parts[1].Split(" ", StringSplitOptions.RemoveEmptyEntries).Select(long.Parse).ToArray();
+            var valid = false;
             foreach (var op in Operations)
             {
-                var valid = Compare(comp, numbers, 0, 0, op);
-                if (valid)
-                {
-                    validTests.Add(comp);
-                }
+                 valid |= Compare(comp, numbers, 1, numbers[0], op);
+            }
+            
+            if (valid)
+            {
+                validTests.Add(comp);
             }
         }
 
@@ -39,6 +41,11 @@ public class Part1 : IPart
     {
         if (index == numbers.Length)
         {
+            if (result == comp)
+            {
+                return true;
+            }
+
             return false;
         }
 
@@ -48,11 +55,6 @@ public class Part1 : IPart
         foreach (var op in Operations)
         {
             valid |= Compare(comp, numbers, index + 1, result, op);
-        }
-
-        if (result == comp)
-        {
-            valid = true;
         }
 
         return valid;
