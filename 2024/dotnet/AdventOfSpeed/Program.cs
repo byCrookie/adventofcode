@@ -1,14 +1,21 @@
 ﻿using System.Diagnostics;
-using AdventOfCode.Day08;
+using AdventOfCode.Days;
 using AdventOfCode.Measure;
-using AdventOfSpeed.Day8;
-using BenchmarkDotNet.Running;
+using AdventOfSpeed.Utils;
 
 // BenchmarkRunner.Run<Benchmarks>();
 // return;
 
-var before = Stopwatch.GetTimestamp();
-var input = await File.ReadAllTextAsync(Path.Combine("data", "day08", "part02", "input.txt"));
-var result = await new Part2Optimized().RunAsync(new NoneMeasure(), input);
-Console.WriteLine(Stopwatch.GetElapsedTime(before));
-Console.WriteLine(result);
+await RunAsync<AdventOfCode.Day06.Part2>();
+return;
+
+async Task RunAsync<T>() where T : IPart
+{
+    var path = Input.Path<T>();
+    var part = Activator.CreateInstance<T>();
+    var before = Stopwatch.GetTimestamp();
+    var input = await File.ReadAllTextAsync(path);
+    var result = await part.RunAsync(new NoneMeasure(), input);
+    Console.WriteLine(Stopwatch.GetElapsedTime(before));
+    Console.WriteLine(result);
+}

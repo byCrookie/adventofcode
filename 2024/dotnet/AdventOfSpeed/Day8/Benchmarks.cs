@@ -1,5 +1,6 @@
 ﻿using AdventOfCode.Day08;
 using AdventOfCode.Measure;
+using AdventOfSpeed.Utils;
 using BenchmarkDotNet.Attributes;
 
 namespace AdventOfSpeed.Day8;
@@ -8,7 +9,7 @@ namespace AdventOfSpeed.Day8;
 public class Benchmarks
 {
     private readonly IMeasure _measure = new NoneMeasure();
-    private readonly string _input = File.ReadAllText(Path.Combine("data", "day08", "part02", "input.txt"));
+    private readonly string _input = File.ReadAllText(Input.Path<Part2Optimized>());
 
     [Benchmark(Baseline = true)]
     public Task Benchmark_Part2Optimized()
