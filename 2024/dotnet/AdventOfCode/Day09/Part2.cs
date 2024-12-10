@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Text;
+﻿using System.Text;
 using AdventOfCode.Days;
 using AdventOfCode.Measure;
 
@@ -24,7 +23,7 @@ public class Part2 : IPart
                 diskSpace.Add(new Block(fileId, number));
                 fileId++;
             }
-            else
+            else if (number > 0)
             {
                 diskSpace.Add(new Block(null, number));
             }
@@ -32,6 +31,7 @@ public class Part2 : IPart
             isFile = !isFile;
         }
 
+        Console.WriteLine($"Input: {input}");
         Console.WriteLine($"Blocks: {diskSpace.Count}");
         Console.WriteLine($"Disk size: {diskSpace.Sum(b => b.Size)}");
         Console.WriteLine($"Disk space: {DiskSpaceToString(diskSpace)}");
@@ -42,40 +42,41 @@ public class Part2 : IPart
             .Reverse()
             .ToList();
 
-        var added = 0;
-        foreach (var (blockIndex, block) in blocks)
+        while (true)
         {
+            if (blocks.Count == 0)
+            {
+                break;
+            }
+
+            var (blockIndex, block) = blocks.First();
+
             foreach (var (freeBlockIndex, freeBlock) in diskSpace
                          .Select((freeBlock, index) => (index, freeBlock))
                          .Where(b => !b.freeBlock.Id.HasValue)
-                         .Where(b => b.index < blockIndex + added)
+                         .Where(b => b.index < blockIndex)
                          .ToList())
             {
                 if (block.Size == freeBlock.Size)
                 {
-                    Console.WriteLine(
-                        $"Block ({blockIndex} + {added} = {blockIndex + added}): {block} Free block ({freeBlockIndex}): {freeBlock}");
                     diskSpace[freeBlockIndex] = block;
-                    diskSpace[blockIndex + added] = freeBlock;
+                    diskSpace[blockIndex] = freeBlock;
                     Console.WriteLine($"Disk space: {DiskSpaceToString(diskSpace)}");
                     break;
                 }
 
                 if (block.Size < freeBlock.Size)
                 {
-                    Console.WriteLine(
-                        $"Block ({blockIndex} + {added} = {blockIndex + added}): {block} Free block ({freeBlockIndex}): {freeBlock}");
                     diskSpace[freeBlockIndex] = new Block(null, freeBlock.Size - block.Size);
-                    diskSpace[blockIndex + added] = block with { Id = null };
+                    diskSpace[blockIndex] = block with { Id = null };
                     diskSpace.Insert(freeBlockIndex, block);
-                    added++;
+                    blocks = blocks.Select(b => b.index > freeBlockIndex ? (b.index + 1, b.block) : b).ToList();
                     Console.WriteLine($"Disk space: {DiskSpaceToString(diskSpace)}");
                     break;
                 }
-
-                Console.WriteLine(
-                    $"Block ({blockIndex} + {added} = {blockIndex + added}): {block} Free block ({freeBlockIndex}): {freeBlock}");
             }
+
+            blocks.RemoveAt(0);
         }
 
         Console.WriteLine($"Blocks: {diskSpace.Count}");
@@ -115,15 +116,15 @@ public class Part2 : IPart
         {
             sb.Append(block.Id.HasValue ? new string($"{block.Id}"[0], block.Size) : new string('.', block.Size));
         }
-        
-        sb.AppendLine();
 
-        foreach (var (index, block) in diskSpace.Select((b, index) => (index, b)))
-        {
-            sb.Append(block.Id.HasValue
-                ? $"({index}){new string($"{block.Id}"[0], block.Size)}"
-                : $"({index}){new string('.', block.Size)}");
-        }
+        // sb.AppendLine();
+        //
+        // foreach (var (index, block) in diskSpace.Select((b, index) => (index, b)))
+        // {
+        //     sb.Append(block.Id.HasValue
+        //         ? $"({index}){new string($"{block.Id}"[0], block.Size)}"
+        //         : $"({index}){new string('.', block.Size)}");
+        // }
 
         return sb.ToString();
     }
