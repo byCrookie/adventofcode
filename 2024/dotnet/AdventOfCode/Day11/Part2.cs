@@ -10,16 +10,22 @@ public class Part2 : IPart
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
         const long blinks = 75;
-        var stones = input.Split(' ').Select(long.Parse);
-        // Console.WriteLine($"Blink 0: {string.Join(", ", stones.Select(s => s.Num))}");
+        var stones = input.Split(' ').Select(long.Parse).ToDictionary(s => s, _ => 1L);
 
         for (var blink = 0; blink < blinks; blink++)
         {
-            stones = stones.SelectMany(stone =>
+            var newStones = new Dictionary<long, long>();
+
+            foreach (var (stone, count) in stones)
             {
                 if (stone == 0)
                 {
-                    return [1L];
+                    if (!newStones.TryAdd(1, count))
+                    {
+                        newStones[1] += count;
+                    }
+
+                    continue;
                 }
 
                 var length = stone.Equals(0) ? 1L : (long)Math.Log10(stone) + 1L;
@@ -29,18 +35,30 @@ public class Part2 : IPart
                     var x = (long)Math.Pow(10L, length / 2);
                     var left = stone / x;
                     var right = stone % x;
-                    return [left, right];
+                    if (!newStones.TryAdd(left, count))
+                    {
+                        newStones[left] += count;
+                    }
+
+                    if (!newStones.TryAdd(right, count))
+                    {
+                        newStones[right] += count;
+                    }
+
+                    continue;
                 }
 
-                return new[] { stone * 2024 };
-            });
+                var newStone = stone * 2024;
+                if (!newStones.TryAdd(newStone, count))
+                {
+                    newStones[newStone] += count;
+                }
+            }
 
-            // Console.WriteLine($"Blink {blink + 1}: {string.Join(", ", stones.Select(s => s.Num))}");
-            // Console.WriteLine($"Blink {blink + 1}: {stones.Count()}");
-            // Console.WriteLine($"Blink {blink + 1}");
+            stones = newStones;
         }
 
-        var count = stones.Count();
-        return Task.FromResult(new PartResult($"{count}", $"Amount of stones after blinking: {count}"));
+        var result = stones.Sum(s => s.Value);
+        return Task.FromResult(new PartResult($"{result}", $"Amount of stones after blinking: {result}"));
     }
 }
