@@ -6,7 +6,7 @@ using AdventOfSpeed.Utils;
 // BenchmarkRunner.Run<Benchmarks>();
 // return;
 
-await RunAsync<AdventOfCode.Day06.Part2>();
+await RunAsync<AdventOfCode.Day11.Part2>();
 return;
 
 async Task RunAsync<T>() where T : IPart

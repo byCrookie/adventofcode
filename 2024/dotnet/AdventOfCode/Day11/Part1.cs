@@ -9,7 +9,7 @@ public class Part1 : IPart
 {
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
-        const long blinks = 75;
+        const long blinks = 25;
         var stones = input.Split(' ').Select(long.Parse).Select(n => new Stone(n, $"{n}")).ToList();
         // Console.WriteLine($"Blink 0: {string.Join(", ", stones.Select(s => s.Num))}");
 
