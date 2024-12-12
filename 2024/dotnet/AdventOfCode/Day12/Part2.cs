@@ -81,11 +81,14 @@ public class Part2 : IPart
                 }
             }
             
-            var sides = 1;
-            var current = perimeter.First();
-            var moved = new HashSet<Position>{current};
-            var dir = Directions.FirstOrDefault(d => perimeter.Contains(current + d) && !moved.Contains(current + d));
+
+            var start = perimeter.First();
+            var moved = new HashSet<Position>();
+            var dir = Directions.Where(d => perimeter.Contains(start + d) && !moved.Contains(start + d)).First();
             var lastDir = dir;
+            var sides = 0;
+            var current = start;
+            var last = start;
             while (moved.Count < perimeter.Count)
             {
                 PrintField(field, current, perimeter, sides);
@@ -98,15 +101,13 @@ public class Part2 : IPart
                         sides += 1;
                     }
                     
+                    last = current;
                     current = position;
                     PrintField(field, current, perimeter, sides);
                     moved.Add(current);
-                    lastDir = dir;
-                    continue;
                 }
             
                 var nextDirections = Directions
-                    .Where(d => d != dir)
                     .Where(d => perimeter.Contains(current + d) && !moved.Contains(current + d))
                     .ToList();
             
@@ -114,9 +115,14 @@ public class Part2 : IPart
                 {
                     break;
                 }
+                
+                if (nextDirections.Count > 1 && last != start)
+                {
+                    sides += 3;
+                }
             
                 lastDir = dir;
-                dir = nextDirections.First();
+                dir = nextDirections.Contains(lastDir) ? lastDir : nextDirections.First();
             }
             
             // PrintField(field, perimeter);
