@@ -15,7 +15,7 @@ public class Part2 : IPart
         new(-1, 0),
         new(0, -1)
     ];
-    
+
     private static readonly List<Direction> DirectionsAndDiagonal =
     [
         new(1, 0),
@@ -27,7 +27,7 @@ public class Part2 : IPart
         new(-1, -1),
         new(1, -1)
     ];
-    
+
     private static readonly List<Direction> DiagonalDirections =
     [
         new(1, 1),
@@ -80,60 +80,48 @@ public class Part2 : IPart
                     }
                 }
             }
-            
 
-            var start = perimeter.First();
-            var moved = new HashSet<Position>();
-            var dir = Directions.Where(d => perimeter.Contains(start + d) && !moved.Contains(start + d)).First();
-            var lastDir = dir;
             var sides = 0;
-            var current = start;
-            var last = start;
-            while (moved.Count < perimeter.Count)
+
+            var left = new Direction(-1, 0);
+            var right = new Direction(1, 0);
+            var up = new Direction(0, -1);
+            var down = new Direction(0, 1);
+            var topLeft = new Direction(-1, -1);
+            var topRight = new Direction(1, -1);
+            var bottomLeft = new Direction(-1, 1);
+            var bottomRight = new Direction(1, 1);
+
+            foreach (var position in area.Positions)
             {
-                PrintField(field, current, perimeter, sides);
-                
-                var position = current + dir;
-                if (perimeter.Contains(position) && !moved.Contains(position))
+                if (!area.Positions.Contains(position + left) && !area.Positions.Contains(position + up)
+                    || !area.Positions.Contains(position + topLeft) && area.Positions.Contains(position + left)
+                                                                    && area.Positions.Contains(position + up))
                 {
-                    if (lastDir != dir)
-                    {
-                        sides += 1;
-                    }
-                    
-                    last = current;
-                    current = position;
-                    PrintField(field, current, perimeter, sides);
-                    moved.Add(current);
+                    sides++;
                 }
-            
-                var nextDirections = Directions
-                    .Where(d => perimeter.Contains(current + d) && !moved.Contains(current + d))
-                    .ToList();
-            
-                if (nextDirections.Count == 0)
+
+                if (!area.Positions.Contains(position + right) && !area.Positions.Contains(position + up)
+                    || !area.Positions.Contains(position + topRight) && area.Positions.Contains(position + right)
+                                                                     && area.Positions.Contains(position + up))
                 {
-                    break;
+                    sides++;
                 }
                 
-                if (nextDirections.Count > 1 && last != start)
+                if (!area.Positions.Contains(position + right) && !area.Positions.Contains(position + down)
+                    || !area.Positions.Contains(position + bottomRight) && area.Positions.Contains(position + right)
+                                                                        && area.Positions.Contains(position + down))
                 {
-                    sides += 3;
+                    sides++;
                 }
-            
-                lastDir = dir;
-                dir = nextDirections.Contains(lastDir) ? lastDir : nextDirections.First();
+                
+                if (!area.Positions.Contains(position + left) && !area.Positions.Contains(position + down)
+                    || !area.Positions.Contains(position + bottomLeft) && area.Positions.Contains(position + left)
+                                                                    && area.Positions.Contains(position + down))
+                {
+                    sides++;
+                }
             }
-            
-            // PrintField(field, perimeter);
-            //
-            // var sides = 0;
-            // var moves = new HashSet<Position>();
-            // foreach (var direction in DirectionsAndDiagonal)
-            // {
-            //     var position = area.Positions.First() + direction;
-            //     sides += CountSides(field, area, perimeter, position, moves);
-            // }
 
             regions.Add(new Region(area, perimeter, sides));
         }
@@ -148,22 +136,6 @@ public class Part2 : IPart
 
         return Task.FromResult(new PartResult($"{totalPrice}", $"Total price: {totalPrice}"));
     }
-
-    // private static int CountSides(char[][] field, Area area, HashSet<Position> perimeter, Position position, HashSet<Position> moves)
-    // {
-    //     if (!area.Positions.Contains(position) || !moves.Add(position))
-    //     {
-    //         return 0;
-    //     }
-    //
-    //     var sides = 1;
-    //     foreach (var direction in DiagonalDirections)
-    //     {
-    //         sides += CountSides(field, area, perimeter, position + direction, moves);
-    //     }
-    //
-    //     return sides;
-    // }
 
     private static void DiscoverArea(char[][] field, Position position, HashSet<Position> areaPositions)
     {
@@ -195,11 +167,11 @@ public class Part2 : IPart
 
         return field;
     }
-    
+
     private static void PrintField(char[][] field, Position position, HashSet<Position> perimeter, int sides)
     {
         Console.Clear();
-        
+
         var xLength = field[0].Length;
         var yLength = field.Length;
 
@@ -211,10 +183,10 @@ public class Part2 : IPart
                 {
                     Console.Write("o");
                 }
-                else  if (perimeter.Contains(new Position(x, y)))
+                else if (perimeter.Contains(new Position(x, y)))
                 {
                     Console.Write("#");
-                } 
+                }
                 else if (InBounds(field, new Position(x, y)))
                 {
                     Console.Write(field[y][x]);
@@ -224,10 +196,10 @@ public class Part2 : IPart
                     Console.Write(".");
                 }
             }
-            
+
             Console.WriteLine();
         }
-        
+
         Console.WriteLine($"Sides: {sides}");
     }
 
