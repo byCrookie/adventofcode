@@ -82,14 +82,52 @@ public class Part2 : IPart
             }
             
             var sides = 1;
-            var start = perimeter.ToList()[Random.Shared.Next(0, perimeter.Count)];
-            var moved = new HashSet<Position>{start};
-            foreach (var direction in Directions.Where(d => perimeter.Contains(start + d)))
+            var current = perimeter.First();
+            var moved = new HashSet<Position>{current};
+            var dir = Directions.FirstOrDefault(d => perimeter.Contains(current + d) && !moved.Contains(current + d));
+            var lastDir = dir;
+            while (moved.Count < perimeter.Count)
             {
-                var position = start + direction;
-                sides += WalkSides(start, field, position, direction, perimeter, moved, false);
+                PrintField(field, current, perimeter, sides);
+                
+                var position = current + dir;
+                if (perimeter.Contains(position) && !moved.Contains(position))
+                {
+                    if (lastDir != dir)
+                    {
+                        sides += 1;
+                    }
+                    
+                    current = position;
+                    PrintField(field, current, perimeter, sides);
+                    moved.Add(current);
+                    lastDir = dir;
+                    continue;
+                }
+            
+                var nextDirections = Directions
+                    .Where(d => d != dir)
+                    .Where(d => perimeter.Contains(current + d) && !moved.Contains(current + d))
+                    .ToList();
+            
+                if (nextDirections.Count == 0)
+                {
+                    break;
+                }
+            
+                lastDir = dir;
+                dir = nextDirections.First();
             }
-            Console.WriteLine($"{area.Type} {area.Positions.Count} * {sides} = {area.Positions.Count * sides}");
+            
+            // PrintField(field, perimeter);
+            //
+            // var sides = 0;
+            // var moves = new HashSet<Position>();
+            // foreach (var direction in DirectionsAndDiagonal)
+            // {
+            //     var position = area.Positions.First() + direction;
+            //     sides += CountSides(field, area, perimeter, position, moves);
+            // }
 
             regions.Add(new Region(area, perimeter, sides));
         }
@@ -105,41 +143,21 @@ public class Part2 : IPart
         return Task.FromResult(new PartResult($"{totalPrice}", $"Total price: {totalPrice}"));
     }
 
-    private static int WalkSides(Position start, char[][] field, Position position, Direction previousDirection, HashSet<Position> perimeter,
-        HashSet<Position> moved, bool canWalkAgain)
-    {
-        moved.Add(position);
-        
-        PrintField(field, perimeter, position);
-        
-        var nextDirections = Directions.Where(d => perimeter.Contains(position + d) && !moved.Contains(position + d)).ToList();
-
-        var canWalkBack = canWalkAgain;
-        if (nextDirections.Count == 0 && canWalkAgain)
-        {
-            nextDirections = DiagonalDirections.Where(d => perimeter.Contains(position + d)).ToList();
-            
-            if (nextDirections.Count != 1)
-            {
-                nextDirections = Directions.Where(d => perimeter.Contains(position + d) && !moved.Contains(position + d)).ToList();
-                canWalkBack = false;
-            }
-        }
-        
-        var sides = 0;
-        foreach (var direction in nextDirections)
-        {
-            var newPosition = position + direction;
-            if (previousDirection != direction)
-            {
-                sides += 1;
-            }
-            
-            sides += WalkSides(start, field, newPosition, direction, perimeter, moved, canWalkBack);
-        }
-        
-        return sides;
-    }
+    // private static int CountSides(char[][] field, Area area, HashSet<Position> perimeter, Position position, HashSet<Position> moves)
+    // {
+    //     if (!area.Positions.Contains(position) || !moves.Add(position))
+    //     {
+    //         return 0;
+    //     }
+    //
+    //     var sides = 1;
+    //     foreach (var direction in DiagonalDirections)
+    //     {
+    //         sides += CountSides(field, area, perimeter, position + direction, moves);
+    //     }
+    //
+    //     return sides;
+    // }
 
     private static void DiscoverArea(char[][] field, Position position, HashSet<Position> areaPositions)
     {
@@ -172,7 +190,7 @@ public class Part2 : IPart
         return field;
     }
     
-    private static void PrintField(char[][] field, HashSet<Position> perimeter, Position position)
+    private static void PrintField(char[][] field, Position position, HashSet<Position> perimeter, int sides)
     {
         Console.Clear();
         
@@ -185,9 +203,9 @@ public class Part2 : IPart
             {
                 if (position.X == x && position.Y == y)
                 {
-                    Console.Write("x");
+                    Console.Write("o");
                 }
-                else if (perimeter.Contains(new Position(x, y)))
+                else  if (perimeter.Contains(new Position(x, y)))
                 {
                     Console.Write("#");
                 } 
@@ -203,9 +221,9 @@ public class Part2 : IPart
             
             Console.WriteLine();
         }
+        
+        Console.WriteLine($"Sides: {sides}");
     }
-    
-    private record struct Move(Position Position, Direction Direction);
 
     private record struct Region(Area Area, HashSet<Position> Permimeter, int Sides);
 
