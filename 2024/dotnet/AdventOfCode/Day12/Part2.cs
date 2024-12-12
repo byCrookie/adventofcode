@@ -15,6 +15,26 @@ public class Part2 : IPart
         new(-1, 0),
         new(0, -1)
     ];
+    
+    private static readonly List<Direction> DirectionsAndDiagonal =
+    [
+        new(1, 0),
+        new(0, 1),
+        new(-1, 0),
+        new(0, -1),
+        new(1, 1),
+        new(-1, 1),
+        new(-1, -1),
+        new(1, -1)
+    ];
+    
+    private static readonly List<Direction> DiagonalDirections =
+    [
+        new(1, 1),
+        new(-1, 1),
+        new(-1, -1),
+        new(1, -1)
+    ];
 
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
@@ -48,10 +68,10 @@ public class Part2 : IPart
         var regions = new List<Region>();
         foreach (var area in distinctAreas)
         {
-            var perimeter = new List<Position>();
+            var perimeter = new HashSet<Position>();
             foreach (var position in area.Positions)
             {
-                foreach (var direction in Directions)
+                foreach (var direction in DirectionsAndDiagonal)
                 {
                     var newPosition = position + direction;
                     if (!InBounds(field, newPosition) || field[newPosition.Y][newPosition.X] != area.Type)
@@ -60,20 +80,84 @@ public class Part2 : IPart
                     }
                 }
             }
+            
+            var sides = 1;
+            var current = perimeter.First();
+            var moved = new HashSet<Position>{current};
+            var dir = Directions.FirstOrDefault(d => perimeter.Contains(current + d) && !moved.Contains(current + d));
+            var lastDir = dir;
+            while (moved.Count < perimeter.Count)
+            {
+                PrintField(field, current, perimeter, sides);
+                
+                var position = current + dir;
+                if (perimeter.Contains(position) && !moved.Contains(position))
+                {
+                    if (lastDir != dir)
+                    {
+                        sides += 1;
+                    }
+                    
+                    current = position;
+                    PrintField(field, current, perimeter, sides);
+                    moved.Add(current);
+                    lastDir = dir;
+                    continue;
+                }
+            
+                var nextDirections = Directions
+                    .Where(d => d != dir)
+                    .Where(d => perimeter.Contains(current + d) && !moved.Contains(current + d))
+                    .ToList();
+            
+                if (nextDirections.Count == 0)
+                {
+                    break;
+                }
+            
+                lastDir = dir;
+                dir = nextDirections.First();
+            }
+            
+            // PrintField(field, perimeter);
+            //
+            // var sides = 0;
+            // var moves = new HashSet<Position>();
+            // foreach (var direction in DirectionsAndDiagonal)
+            // {
+            //     var position = area.Positions.First() + direction;
+            //     sides += CountSides(field, area, perimeter, position, moves);
+            // }
 
-            regions.Add(new Region(area, perimeter));
+            regions.Add(new Region(area, perimeter, sides));
         }
 
         var totalPrice = 0;
         foreach (var region in regions)
         {
-            var price = region.Area.Positions.Count * region.Permimeter.Count;
-            Console.WriteLine($"{region.Area.Positions.Count} * {region.Permimeter.Count} = {price}");
+            var price = region.Area.Positions.Count * region.Sides;
+            Console.WriteLine($"{region.Area.Type} {region.Area.Positions.Count} * {region.Sides} = {price}");
             totalPrice += price;
         }
 
         return Task.FromResult(new PartResult($"{totalPrice}", $"Total price: {totalPrice}"));
     }
+
+    // private static int CountSides(char[][] field, Area area, HashSet<Position> perimeter, Position position, HashSet<Position> moves)
+    // {
+    //     if (!area.Positions.Contains(position) || !moves.Add(position))
+    //     {
+    //         return 0;
+    //     }
+    //
+    //     var sides = 1;
+    //     foreach (var direction in DiagonalDirections)
+    //     {
+    //         sides += CountSides(field, area, perimeter, position + direction, moves);
+    //     }
+    //
+    //     return sides;
+    // }
 
     private static void DiscoverArea(char[][] field, Position position, HashSet<Position> areaPositions)
     {
@@ -105,8 +189,37 @@ public class Part2 : IPart
 
         return field;
     }
+    
+    private static void PrintField(char[][] field, HashSet<Position> perimeter)
+    {
+        Console.Clear();
+        
+        var xLength = field[0].Length;
+        var yLength = field.Length;
 
-    private record struct Region(Area Area, List<Position> Permimeter);
+        for (var y = -1; y <= yLength; y++)
+        {
+            for (var x = -1; x <= xLength; x++)
+            {
+                if (perimeter.Contains(new Position(x, y)))
+                {
+                    Console.Write("#");
+                } 
+                else if (InBounds(field, new Position(x, y)))
+                {
+                    Console.Write(field[y][x]);
+                }
+                else
+                {
+                    Console.Write(".");
+                }
+            }
+            
+            Console.WriteLine();
+        }
+    }
+
+    private record struct Region(Area Area, HashSet<Position> Permimeter, int Sides);
 
     private record struct Area(char Type, HashSet<Position> Positions);
 
