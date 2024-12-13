@@ -10,6 +10,7 @@ using AdventOfCode.Day09;
 using AdventOfCode.Day10;
 using AdventOfCode.Day11;
 using AdventOfCode.Day12;
+using AdventOfCode.Day13;
 using AdventOfCode.Measure;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -33,5 +34,6 @@ public static class Module
         services.AddDay10();
         services.AddDay11();
         services.AddDay12();
+        services.AddDay13();
     }
 }
