@@ -9,12 +9,11 @@ namespace AdventOfCode.Day14;
 public partial class Part2 : IPart
 {
     private const int Rows = 103;
-
     private const int Columns = 101;
 
     // private const int Rows = 7;
     // private const int Columns = 11;
-    private const int Seconds = 1000;
+    private const int Seconds = 10000;
 
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
@@ -25,62 +24,33 @@ public partial class Part2 : IPart
             robots.Add(robot);
         }
 
-        var cursorPositionSeconds = Console.GetCursorPosition();
-        var cursorPositionField = cursorPositionSeconds with { Top = cursorPositionSeconds.Top + 1 };
-        var field = new char[Rows, Columns];
-        for (var i = 0; i < Rows; i++)
+        var overallMaxDensity = 0;
+        var secondWithMaxDensity = 0;
+        for (var second = 0; second < Seconds; second++)
         {
-            for (var j = 0; j < Columns; j++)
+            robots = RobotsAfterSeconds(robots, second);
+            var field = FloodfillField(robots);
+            var density = 0;
+            for (var row = 0; row < Rows; row++)
             {
-                field[i, j] = ' ';
+                for (var column = 0; column < Columns; column++)
+                {
+                    density += Floodfill(field, column, row);
+                }
+            }
+
+            if (density > overallMaxDensity)
+            {
+                overallMaxDensity = density;
+                secondWithMaxDensity = second;
             }
         }
 
-        Console.SetCursorPosition(cursorPositionSeconds.Left, cursorPositionSeconds.Top);
-        Console.Write($"Seconds: {Seconds}");
-        for (var i = 0; i < Rows; i++)
-        {
-            for (var j = 0; j < Columns; j++)
-            {
-                Console.SetCursorPosition(cursorPositionField.Left + j, cursorPositionField.Top + i);
-                Console.Write(field[i, j]);
-            }
-        }
-
-        for (var i = 0; i < Seconds; i++)
-        {
-            var robotsAfterSeconds = new List<Robot>();
-            foreach (var robot in robots)
-            {
-                Console.SetCursorPosition(cursorPositionField.Left + robot.Position.X, cursorPositionField.Top + robot.Position.Y);
-                Console.Write(' ');
-
-                var newX = robot.Position.X + robot.Velocity.X * i;
-                var newY = robot.Position.Y + robot.Velocity.Y * i;
-
-                var wrapX = newX % Columns;
-                var wrapY = newY % Rows;
-
-                var validX = wrapX < 0 ? wrapX + Columns : wrapX;
-                var validY = wrapY < 0 ? wrapY + Rows : wrapY;
-
-                var position = new Position(validX, validY);
-                robotsAfterSeconds.Add(robot with { Position = position });
-
-                Console.SetCursorPosition(cursorPositionField.Left + validX, cursorPositionField.Top + validY);
-                Console.Write('X');
-            }
-            
-            Console.SetCursorPosition(cursorPositionSeconds.Left, cursorPositionSeconds.Top);
-            Console.Write($"Seconds: {i}".PadRight(20));
-            robots = robotsAfterSeconds;
-        }
-
-        var easterEggAfterSeconds = 0;
-        return Task.FromResult(new PartResult($"{easterEggAfterSeconds}", $"Safety factor: {easterEggAfterSeconds}"));
+        PrintField(RobotsAfterSeconds(robots, 8281));
+        return Task.FromResult(new PartResult($"{secondWithMaxDensity}", $"Easter egg after: {secondWithMaxDensity}s"));
     }
 
-    private static void PrintField(List<Robot> robotsAfterSeconds)
+    private static int[,] FloodfillField(List<Robot> robots)
     {
         var field = new int[Rows, Columns];
         for (var i = 0; i < Rows; i++)
@@ -91,21 +61,67 @@ public partial class Part2 : IPart
             }
         }
 
+        foreach (var robot in robots)
+        {
+            field[robot.Position.Y, robot.Position.X] = 1;
+        }
+
+        return field;
+    }
+
+    private static int Floodfill(int[,] field, int x, int y)
+    {
+        if (x < 0 || x >= Columns || y < 0 || y >= Rows || field[y, x] == 0)
+        {
+            return 0;
+        }
+
+        field[y, x] = 0;
+        return 1 + Floodfill(field, x + 1, y) + Floodfill(field, x - 1, y) + Floodfill(field, x, y + 1) +
+               Floodfill(field, x, y - 1);
+    }
+
+    private static List<Robot> RobotsAfterSeconds(List<Robot> previous, int seconds)
+    {
+        var next = new List<Robot>();
+        foreach (var robot in previous)
+        {
+            var newX = robot.Position.X + robot.Velocity.X * seconds;
+            var newY = robot.Position.Y + robot.Velocity.Y * seconds;
+
+            var wrapX = newX % Columns;
+            var wrapY = newY % Rows;
+
+            var validX = wrapX < 0 ? wrapX + Columns : wrapX;
+            var validY = wrapY < 0 ? wrapY + Rows : wrapY;
+
+            var position = new Position(validX, validY);
+            next.Add(robot with { Position = position });
+        }
+
+        return next;
+    }
+
+    private static void PrintField(List<Robot> robotsAfterSeconds)
+    {
+        var field = new char[Rows, Columns];
+        for (var i = 0; i < Rows; i++)
+        {
+            for (var j = 0; j < Columns; j++)
+            {
+                field[i, j] = ' ';
+            }
+        }
+
         foreach (var robot in robotsAfterSeconds)
         {
-            field[robot.Position.Y, robot.Position.X]++;
+            field[robot.Position.Y, robot.Position.X] = '#';
         }
 
         for (var i = 0; i < Rows; i++)
         {
             for (var j = 0; j < Columns; j++)
             {
-                if (field[i, j] == 0)
-                {
-                    Console.Write(".");
-                    continue;
-                }
-
                 Console.Write(field[i, j]);
             }
 
