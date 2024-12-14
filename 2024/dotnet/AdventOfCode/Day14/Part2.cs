@@ -17,36 +17,44 @@ public partial class Part2 : IPart
 
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
-        var robots = new List<Robot>();
+        var originalRobots = new List<Robot>();
         foreach (var line in input.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
         {
             var robot = ParseRobot(line);
-            robots.Add(robot);
+            originalRobots.Add(robot);
         }
 
         var overallMaxDensity = 0;
         var secondWithMaxDensity = 0;
         for (var second = 0; second < Seconds; second++)
         {
-            robots = RobotsAfterSeconds(robots, second);
+            var robots = RobotsAfterSeconds(originalRobots, second);
+
             var field = FloodfillField(robots);
-            var density = 0;
+            var maxDensity = 0;
+
             for (var row = 0; row < Rows; row++)
             {
                 for (var column = 0; column < Columns; column++)
                 {
-                    density += Floodfill(field, column, row);
+                    var density = 0;
+                    Floodfill(field, column, row, ref density);
+
+                    if (density > maxDensity)
+                    {
+                        maxDensity = density;
+                    }
                 }
             }
 
-            if (density > overallMaxDensity)
+            if (maxDensity > overallMaxDensity)
             {
-                overallMaxDensity = density;
+                overallMaxDensity = maxDensity;
                 secondWithMaxDensity = second;
             }
         }
 
-        PrintField(RobotsAfterSeconds(robots, 8281));
+        PrintField(RobotsAfterSeconds(originalRobots, secondWithMaxDensity));
         return Task.FromResult(new PartResult($"{secondWithMaxDensity}", $"Easter egg after: {secondWithMaxDensity}s"));
     }
 
@@ -63,65 +71,71 @@ public partial class Part2 : IPart
 
         foreach (var robot in robots)
         {
-            field[robot.Position.Y, robot.Position.X] = 1;
+            field[robot.Position.Y, robot.Position.X]++;
         }
 
         return field;
     }
 
-    private static int Floodfill(int[,] field, int x, int y)
+    private static void Floodfill(int[,] field, int x, int y, ref int density)
     {
-        if (x < 0 || x >= Columns || y < 0 || y >= Rows || field[y, x] == 0)
+        if (!InBounds(x, y) || field[y, x] == 0)
         {
-            return 0;
+            return;
         }
 
+        density += field[y, x];
         field[y, x] = 0;
-        return 1 + Floodfill(field, x + 1, y) + Floodfill(field, x - 1, y) + Floodfill(field, x, y + 1) +
-               Floodfill(field, x, y - 1);
+        Floodfill(field, x + 1, y, ref density);
+        Floodfill(field, x - 1, y, ref density);
+        Floodfill(field, x, y + 1, ref density);
+        Floodfill(field, x, y - 1, ref density);
+    }
+
+    private static bool InBounds(int x, int y)
+    {
+        return x is >= 0 and < Columns && y is >= 0 and < Rows;
     }
 
     private static List<Robot> RobotsAfterSeconds(List<Robot> previous, int seconds)
     {
-        var next = new List<Robot>();
-        foreach (var robot in previous)
-        {
-            var newX = robot.Position.X + robot.Velocity.X * seconds;
-            var newY = robot.Position.Y + robot.Velocity.Y * seconds;
-
-            var wrapX = newX % Columns;
-            var wrapY = newY % Rows;
-
-            var validX = wrapX < 0 ? wrapX + Columns : wrapX;
-            var validY = wrapY < 0 ? wrapY + Rows : wrapY;
-
-            var position = new Position(validX, validY);
-            next.Add(robot with { Position = position });
-        }
-
-        return next;
+        return (from robot in previous
+            let newX = robot.Position.X + robot.Velocity.X * seconds
+            let newY = robot.Position.Y + robot.Velocity.Y * seconds
+            let wrapX = newX % Columns
+            let wrapY = newY % Rows
+            let validX = wrapX < 0 ? wrapX + Columns : wrapX
+            let validY = wrapY < 0 ? wrapY + Rows : wrapY
+            let position = new Position(validX, validY)
+            select robot with { Position = position }).ToList();
     }
 
     private static void PrintField(List<Robot> robotsAfterSeconds)
     {
-        var field = new char[Rows, Columns];
+        var field = new int[Rows, Columns];
         for (var i = 0; i < Rows; i++)
         {
             for (var j = 0; j < Columns; j++)
             {
-                field[i, j] = ' ';
+                field[i, j] = 0;
             }
         }
 
         foreach (var robot in robotsAfterSeconds)
         {
-            field[robot.Position.Y, robot.Position.X] = '#';
+            field[robot.Position.Y, robot.Position.X]++;
         }
 
         for (var i = 0; i < Rows; i++)
         {
             for (var j = 0; j < Columns; j++)
             {
+                if (field[i, j] == 0)
+                {
+                    Console.Write(".");
+                    continue;
+                }
+
                 Console.Write(field[i, j]);
             }
 
