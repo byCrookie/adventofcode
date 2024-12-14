@@ -9,8 +9,12 @@ namespace AdventOfCode.Day14;
 public partial class Part2 : IPart
 {
     private const int Rows = 103;
+
     private const int Columns = 101;
-    private const int Seconds = 100;
+
+    // private const int Rows = 7;
+    // private const int Columns = 11;
+    private const int Seconds = 1000;
 
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
@@ -21,31 +25,59 @@ public partial class Part2 : IPart
             robots.Add(robot);
         }
 
-        var robotsAfterSeconds = new List<Robot>();
-        foreach (var robot in robots)
+        var cursorPositionSeconds = Console.GetCursorPosition();
+        var cursorPositionField = cursorPositionSeconds with { Top = cursorPositionSeconds.Top + 1 };
+        var field = new char[Rows, Columns];
+        for (var i = 0; i < Rows; i++)
         {
-            var newX = robot.Position.X + robot.Velocity.X * Seconds;
-            var newY = robot.Position.Y + robot.Velocity.Y * Seconds;
-
-            var wrapX = newX % Columns;
-            var wrapY = newY % Rows;
-
-            var validX = wrapX < 0 ? wrapX + Columns : wrapX;
-            var validY = wrapY < 0 ? wrapY + Rows : wrapY;
-
-            var position = new Position(validX, validY);
-            robotsAfterSeconds.Add(robot with { Position = position });
+            for (var j = 0; j < Columns; j++)
+            {
+                field[i, j] = ' ';
+            }
         }
 
-        PrintField(robotsAfterSeconds);
+        Console.SetCursorPosition(cursorPositionSeconds.Left, cursorPositionSeconds.Top);
+        Console.Write($"Seconds: {Seconds}");
+        for (var i = 0; i < Rows; i++)
+        {
+            for (var j = 0; j < Columns; j++)
+            {
+                Console.SetCursorPosition(cursorPositionField.Left + j, cursorPositionField.Top + i);
+                Console.Write(field[i, j]);
+            }
+        }
 
-        var topLeftQuarter = robotsAfterSeconds.Count(r => r.Position is { X: < Columns / 2, Y: < Rows / 2 });
-        var topRightQuarter = robotsAfterSeconds.Count(r => r.Position is { X: > Columns / 2, Y: < Rows / 2 });
-        var bottomLeftQuarter = robotsAfterSeconds.Count(r => r.Position is { X: < Columns / 2, Y: > Rows / 2 });
-        var bottomRightQuarter = robotsAfterSeconds.Count(r => r.Position is { X: > Columns / 2, Y: > Rows / 2 });
+        for (var i = 0; i < Seconds; i++)
+        {
+            var robotsAfterSeconds = new List<Robot>();
+            foreach (var robot in robots)
+            {
+                Console.SetCursorPosition(cursorPositionField.Left + robot.Position.X, cursorPositionField.Top + robot.Position.Y);
+                Console.Write(' ');
 
-        var safetyFactor = topLeftQuarter * topRightQuarter * bottomLeftQuarter * bottomRightQuarter;
-        return Task.FromResult(new PartResult($"{safetyFactor}", $"Safety factor: {safetyFactor}"));
+                var newX = robot.Position.X + robot.Velocity.X * i;
+                var newY = robot.Position.Y + robot.Velocity.Y * i;
+
+                var wrapX = newX % Columns;
+                var wrapY = newY % Rows;
+
+                var validX = wrapX < 0 ? wrapX + Columns : wrapX;
+                var validY = wrapY < 0 ? wrapY + Rows : wrapY;
+
+                var position = new Position(validX, validY);
+                robotsAfterSeconds.Add(robot with { Position = position });
+
+                Console.SetCursorPosition(cursorPositionField.Left + validX, cursorPositionField.Top + validY);
+                Console.Write('X');
+            }
+            
+            Console.SetCursorPosition(cursorPositionSeconds.Left, cursorPositionSeconds.Top);
+            Console.Write($"Seconds: {i}".PadRight(20));
+            robots = robotsAfterSeconds;
+        }
+
+        var easterEggAfterSeconds = 0;
+        return Task.FromResult(new PartResult($"{easterEggAfterSeconds}", $"Safety factor: {easterEggAfterSeconds}"));
     }
 
     private static void PrintField(List<Robot> robotsAfterSeconds)
