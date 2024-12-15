@@ -8,164 +8,282 @@ namespace AdventOfCode.Day15;
 [Part(2)]
 public partial class Part2 : IPart
 {
-    private const int Rows = 103;
-    private const int Columns = 101;
-
-    // private const int Rows = 7;
-    // private const int Columns = 11;
-    private const int Seconds = 10000;
+    private const char Robot = '@';
+    private const char Box = 'O';
+    private const char BoxStart = '[';
+    private const char BoxEnd = ']';
+    private const char Wall = '#';
+    private const char Empty = '.';
+    
+    private static Direction Up => new('^', 0, -1);
+    private static Direction Down => new('v', 0, 1);
+    private static Direction Left => new('<', -1, 0);
+    private static Direction Right => new('>', 1, 0);
+    
+    private const int PrintIndex = 19999;
 
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
-        var originalRobots = input
-            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
-            .Select(ParseRobot)
-            .ToList();
-
-        var overallDensity = (Second: 0, Density: 0);
-        for (var second = 0; second < Seconds; second++)
+        var (robot, field, moves) = Parse(input);
+        Console.WriteLine($"Moves ({moves.Count})");
+        PrintField(field);
+        
+        foreach (var (move,index) in moves.Select((m,i) => (m, i)))
         {
-            var robots = RobotsAfterSeconds(originalRobots, second);
-            var field = FloodfillField(robots);
-            var maxDensity = 0;
-            for (var row = 0; row < Rows; row++)
+            if (index >= PrintIndex)
             {
-                for (var column = 0; column < Columns; column++)
-                {
-                    var density = 0;
-                    density += Floodfill(field, column, row);
+                Console.Clear();
+                Console.WriteLine($"Move ({index}/{moves.Count}): {move.Type}");
+                PrintField(field);
+            }
+            robot = MoveRobot(robot, move, field, index);
+        }
 
-                    if (density > maxDensity)
+        var boxesInCorrectPosition = new List<Position>();
+        for (var y = 0; y < field.Length; y++)
+        {
+            for (var x = 0; x < field[y].Length; x++)
+            {
+                if (field[y][x] == BoxStart)
+                {
+                    boxesInCorrectPosition.Add(new Position(x, y));
+                }
+            }
+        }
+
+        var sum = boxesInCorrectPosition.Sum(box => box.X + 100 * box.Y);
+        return Task.FromResult(new PartResult($"{sum}", $"Sum of boxes gps coordinates: {sum}"));
+    }
+
+    private static Position MoveRobot(Position robot, Direction move, char[][] field, int index)
+    {
+        var newRobot = robot + move;
+        if (!InBounds(field, newRobot) || field[newRobot.Y][newRobot.X] == Wall)
+        {
+            return robot;
+        }
+
+        if (field[newRobot.Y][newRobot.X] == Empty)
+        {
+            field[robot.Y][robot.X] = Empty;
+            field[newRobot.Y][newRobot.X] = Robot;
+            return newRobot;
+        }
+
+        var positionsInFront = new List<Position>();
+        var positionInFront = robot + move;
+        while (InBounds(field, positionInFront) && field[positionInFront.Y][positionInFront.X] != Wall)
+        {
+            positionsInFront.Add(positionInFront);
+            positionInFront += move;
+        }
+
+        var boxesInFront = positionsInFront
+            .TakeWhile(p => (field[p.Y][p.X] == BoxStart || field[p.Y][p.X] == BoxEnd) && field[p.Y][p.X] != Wall && field[p.Y][p.X] != Empty).ToArray();
+        var emptyInFront = positionsInFront.Cast<Position?>()
+            .FirstOrDefault(p => field[p!.Value.Y][p.Value.X] == Empty, null);
+
+        if (emptyInFront is not null && IsHorizontal(move))
+        {
+            foreach (var box in boxesInFront.Reverse())
+            {
+                if (field[box.Y][box.X] == BoxStart)
+                {
+                    field[box.Y][box.X] = Empty;
+                    field[box.Y + move.Y][box.X + move.X] = BoxStart;
+                }
+                else
+                {
+                    field[box.Y][box.X] = Empty;
+                    field[box.Y + move.Y][box.X + move.X] = BoxEnd;
+                }
+            }
+
+            field[robot.Y][robot.X] = Empty;
+            field[newRobot.Y][newRobot.X] = Robot;
+            return newRobot;
+        }
+
+        if (IsVertical(move))
+        {
+            var positionsOfBoxes = FindBoxesInFront(field, robot, move).Distinct().ToArray();
+            var positionsOfBoxesWithNothingInFront = positionsOfBoxes
+                .Where(p => field[p.Y + move.Y][p.X + move.X] == Empty 
+                            || field[p.Y + move.Y][p.X + move.X] == BoxStart
+                            || field[p.Y + move.Y][p.X + move.X] == BoxEnd).ToArray();
+            if (positionsOfBoxesWithNothingInFront.Length != positionsOfBoxes.Length)
+            {
+                return robot;
+            }
+            
+            var orderedBoxes = positionsOfBoxesWithNothingInFront
+                .OrderBy(p => p.Y).ThenBy(p => p.X).ToArray();
+
+            if (move == Down)
+            {
+                orderedBoxes = orderedBoxes.Reverse().ToArray();
+            }
+            
+            foreach (var box in orderedBoxes)
+            {
+                if (field[box.Y][box.X] == BoxStart)
+                {
+                    field[box.Y][box.X] = Empty;
+                    field[box.Y + move.Y][box.X + move.X] = BoxStart;
+                }
+                else if (field[box.Y][box.X] == BoxEnd)
+                {
+                    field[box.Y][box.X] = Empty;
+                    field[box.Y + move.Y][box.X + move.X] = BoxEnd;
+                } else {
+                    throw new InvalidOperationException($"Unknown box type: {field[box.Y][box.X]}");
+                }
+
+                // if (index >= PrintIndex)
+                // {
+                //     Console.Clear();
+                //     Console.WriteLine($"Move ({index}/{positionsOfBoxes.Length}): {move.Type}");
+                //     PrintField(field);
+                // }
+            }
+            
+            field[robot.Y][robot.X] = Empty;
+            field[newRobot.Y][newRobot.X] = Robot;
+            return newRobot;
+        }
+
+        return robot;
+    }
+
+    private static List<Position> FindBoxesInFront(char[][] field, Position robot, Direction move)
+    {
+        var boxesInFront = new List<Position>();
+        var position = robot + move;
+        if (field[position.Y][position.X] == BoxStart)
+        {
+            boxesInFront.Add(position);
+            boxesInFront.Add(position + Right);
+            var boxesInFrontOfBoxStart = FindBoxesInFront(field, position, move);
+            var boxesInFrontOfBoxEnd = FindBoxesInFront(field, position + Right, move);
+            boxesInFront.AddRange(boxesInFrontOfBoxStart);
+            boxesInFront.AddRange(boxesInFrontOfBoxEnd);
+        }
+        
+        if (field[position.Y][position.X] == BoxEnd)
+        {
+            boxesInFront.Add(position);
+            boxesInFront.Add(position + Left);
+            var boxesInFrontOfBoxStart = FindBoxesInFront(field, position, move);
+            var boxesInFrontOfBoxEnd = FindBoxesInFront(field, position + Left, move);
+            boxesInFront.AddRange(boxesInFrontOfBoxStart);
+            boxesInFront.AddRange(boxesInFrontOfBoxEnd);
+        }
+        
+        return boxesInFront;
+    }
+
+    private static bool IsVertical(Direction direction)
+    {
+        return direction.Y != 0;
+    }
+    
+    private static bool IsHorizontal(Direction direction)
+    {
+        return direction.X != 0;
+    }
+
+    private static bool InBounds(char[][] field, Position position)
+    {
+        return position.X >= 0 && position.X < field[0].Length && position.Y >= 0 && position.Y < field.Length;
+    }
+
+    private static void PrintField(char[][] field)
+    {
+        foreach (var row in field)
+        {
+            Console.WriteLine(row);
+        }
+    }
+
+    private static (Position robot, char[][] field, List<Direction> moves) Parse(string input)
+    {
+        Position? robot = null;
+        var field = new List<List<char>>();
+        var moves = new List<Direction>();
+        var parseField = true;
+        foreach (var line in input.Split(Environment.NewLine))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                parseField = false;
+                continue;
+            }
+
+            if (parseField)
+            {
+                var lineStretched = new List<char>();
+                foreach (var c in line.ToCharArray())
+                {
+                    switch (c)
                     {
-                        maxDensity = density;
+                        case Robot:
+                            lineStretched.Add(Robot);
+                            lineStretched.Add(Empty);
+                            continue;
+                        case Empty:
+                            lineStretched.Add(Empty);
+                            lineStretched.Add(Empty);
+                            continue;
+                        case Box:
+                            lineStretched.Add(BoxStart);
+                            lineStretched.Add(BoxEnd);
+                            continue;
+                        case Wall:
+                            lineStretched.Add(Wall);
+                            lineStretched.Add(Wall);
+                            continue;
+                        default:
+                            throw new InvalidOperationException($"Unknown character: {c}");
                     }
                 }
+
+                field.Add(lineStretched);
+                continue;
             }
 
-            if (maxDensity > overallDensity.Density)
+            moves.AddRange(line.ToCharArray().Select(moveChar => moveChar switch
             {
-                overallDensity = (second, maxDensity);
-            }
+                '^' => Up,
+                'v' => Down,
+                '<' => Left,
+                '>' => Right,
+                _ => throw new InvalidOperationException($"Unknown move character: {moveChar}")
+            }));
         }
 
-        PrintField(RobotsAfterSeconds(originalRobots, overallDensity.Second));
-        return Task.FromResult(
-            new PartResult($"{overallDensity.Second}", $"Easter egg after: {overallDensity.Second}s"));
-    }
-
-    private static int[,] FloodfillField(List<Robot> robots)
-    {
-        var field = new int[Rows, Columns];
-        for (var i = 0; i < Rows; i++)
+        for (var y = 0; y < field.Count; y++)
         {
-            for (var j = 0; j < Columns; j++)
+            for (var x = 0; x < field[y].Count; x++)
             {
-                field[i, j] = 0;
-            }
-        }
-
-        foreach (var robot in robots)
-        {
-            field[robot.Position.Y, robot.Position.X]++;
-        }
-
-        return field;
-    }
-
-    private static int Floodfill(int[,] field, int x, int y)
-    {
-        if (!InBounds(x, y) || field[y, x] == 0)
-        {
-            return 0;
-        }
-
-        var density = field[y, x];
-        field[y, x] = 0;
-        return density +
-               Floodfill(field, x + 1, y) +
-               Floodfill(field, x - 1, y) +
-               Floodfill(field, x, y + 1) +
-               Floodfill(field, x, y - 1);
-    }
-
-    private static bool InBounds(int x, int y)
-    {
-        return x is >= 0 and < Columns && y is >= 0 and < Rows;
-    }
-
-    private static List<Robot> RobotsAfterSeconds(List<Robot> previous, int seconds)
-    {
-        return (from robot in previous
-                let newX = robot.Position.X + robot.Velocity.X * seconds
-                let newY = robot.Position.Y + robot.Velocity.Y * seconds
-                let wrapX = newX % Columns
-                let wrapY = newY % Rows
-                let validX = wrapX < 0 ? wrapX + Columns : wrapX
-                let validY = wrapY < 0 ? wrapY + Rows : wrapY
-                let position = new Position(validX, validY)
-                select robot with { Position = position })
-            .ToList();
-    }
-
-    private static void PrintField(List<Robot> robotsAfterSeconds)
-    {
-        var field = new int[Rows, Columns];
-        for (var i = 0; i < Rows; i++)
-        {
-            for (var j = 0; j < Columns; j++)
-            {
-                field[i, j] = 0;
-            }
-        }
-
-        foreach (var robot in robotsAfterSeconds)
-        {
-            field[robot.Position.Y, robot.Position.X]++;
-        }
-
-        for (var i = 0; i < Rows; i++)
-        {
-            for (var j = 0; j < Columns; j++)
-            {
-                if (field[i, j] == 0)
+                var position = new Position(x, y);
+                switch (field[y][x])
                 {
-                    Console.Write(".");
-                    continue;
+                    case Empty:
+                    case Wall:
+                    case BoxStart:
+                    case BoxEnd:
+                        break;
+                    case Robot:
+                        robot = position;
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unknown field character: {field[y][x]}");
                 }
-
-                Console.Write(field[i, j]);
             }
-
-            Console.WriteLine();
         }
+
+        return ((Position)robot!, field.Select(l => l.ToArray()).ToArray(), moves);
     }
-
-    private static Robot ParseRobot(string line)
-    {
-        var match = ButtonRegex().Match(line);
-
-        var px = match.Groups["PXMinus"].Success
-            ? int.Parse(match.Groups["PXMinus"].Value)
-            : int.Parse(match.Groups["PXPlus"].Value);
-
-        var py = match.Groups["PYMinus"].Success
-            ? int.Parse(match.Groups["PYMinus"].Value)
-            : int.Parse(match.Groups["PYPlus"].Value);
-
-        var vx = match.Groups["VXMinus"].Success
-            ? int.Parse(match.Groups["VXMinus"].Value)
-            : int.Parse(match.Groups["VXPlus"].Value);
-
-        var vy = match.Groups["VYMinus"].Success
-            ? int.Parse(match.Groups["VYMinus"].Value)
-            : int.Parse(match.Groups["VYPlus"].Value);
-
-        return new Robot(new Position(px, py), new Velocity(vx, vy));
-    }
-
-    private record struct Robot(Position Position, Velocity Velocity);
-
-    private record struct Velocity(int X, int Y);
 
     private record struct Position(int X, int Y)
     {
@@ -178,9 +296,12 @@ public partial class Part2 : IPart
         {
             return new Position(p1.X - p2.X, p1.Y - p2.Y);
         }
+
+        public static Position operator +(Position p1, Direction dir)
+        {
+            return new Position(p1.X + dir.X, p1.Y + dir.Y);
+        }
     }
 
-    [GeneratedRegex(
-        @"p=((?<PXMinus>-\d*)|(?<PXPlus>\d*)),((?<PYMinus>-\d*)|(?<PYPlus>\d*)) v=((?<VXMinus>-\d*)|(?<VXPlus>\d*)),((?<VYMinus>-\d*)|(?<VYPlus>\d*))")]
-    private static partial Regex ButtonRegex();
+    private record struct Direction(char Type, int X, int Y);
 }
