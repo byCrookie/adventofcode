@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using AdventOfCode.Day15;
 using AdventOfCode.Days;
 using AdventOfCode.Measure;
 using AdventOfSpeed.Utils;
@@ -6,7 +7,7 @@ using AdventOfSpeed.Utils;
 // BenchmarkRunner.Run<Benchmarks>();
 // return;
 
-await RunAsync<AdventOfCode.Day14.Part2>();
+await RunAsync<Part2>();
 return;
 
 async Task RunAsync<T>() where T : IPart
