@@ -27,12 +27,11 @@ public class Part1 : IPart
         var start = FindPosition(field, Start);
         var end = FindPosition(field, End);
 
-        var path = AStar(
+        var path = Dijkstra(
             start,
             end,
             (current, previous) => GetNeighbors(field, current, previous),
-            Distance,
-            current => Math.Abs(current.X - end.X) + Math.Abs(current.Y - end.Y)
+            Distance
         );
 
         if (path is null)
@@ -48,7 +47,7 @@ public class Part1 : IPart
 
         var result = string.Join(Environment.NewLine, field.Select(line => new string(line)));
         Console.WriteLine(result);
-        
+
         var cost = path.Value.Cost;
         return Task.FromResult(new PartResult($"{cost}", $"Cost of path: {cost}"));
     }
@@ -65,7 +64,7 @@ public class Part1 : IPart
             Math.Sign(neighbour.Y - current.Y)
         );
 
-        return direction == newDirection ? 1 : 1000;
+        return direction == newDirection ? 1 : 1001;
     }
 
     private static Position FindPosition(char[][] field, char type)
@@ -118,49 +117,47 @@ public class Part1 : IPart
             select newPosition;
     }
 
-    private static Path<T>? AStar<T>(
+    private static Path<T>? Dijkstra<T>(
         T start,
         T goal,
         Func<T, T, IEnumerable<T>> getNeighbors,
-        Func<T, T, T, double> distance,
-        Func<T, double> heuristic) where T : notnull
+        Func<T, T, T, double> distance) where T : notnull
     {
-        var openSet =
-            new SortedSet<OpenSetEntry<T>>(Comparer<OpenSetEntry<T>>.Create((a, b) => a.FScore.CompareTo(b.FScore)))
-                { new(start, heuristic(start)) };
+        var queue = new PriorityQueue<T, double>();
+        var costs = new Dictionary<T, double>();
+        var previous = new Dictionary<T, T>();
 
-        var cameFrom = new Dictionary<T, T>();
-        var gScore = new Dictionary<T, double> { [start] = 0 };
-        var fScore = new Dictionary<T, double> { [start] = heuristic(start) };
+        queue.Enqueue(start, 0);
+        costs[start] = 0;
 
-        while (openSet.Count > 0)
+        while (queue.Count > 0)
         {
-            var current = openSet.First().Node;
+            var current = queue.Dequeue();
 
-            if (EqualityComparer<T>.Default.Equals(current, goal))
+            if (current.Equals(goal))
             {
-                var path = ReconstructPath(cameFrom, current);
-                var cost = gScore[current];
+                var path = new List<T> { current };
+                var cost = costs[current];
+
+                while (previous.ContainsKey(current))
+                {
+                    current = previous[current];
+                    path.Add(current);
+                }
+
+                path.Reverse();
                 return new Path<T>(path, cost);
             }
 
-            openSet.RemoveWhere(x => EqualityComparer<T>.Default.Equals(x.Node, current));
-
-            foreach (var neighbor in getNeighbors(current, cameFrom.GetValueOrDefault(current, current)))
+            foreach (var neighbor in getNeighbors(current, previous.GetValueOrDefault(current, current)))
             {
-                var tentativeGScore = gScore[current] +
-                                      distance(current, neighbor, cameFrom.GetValueOrDefault(current, current));
+                var newCost = costs[current] + distance(current, neighbor, previous.GetValueOrDefault(current, current));
 
-                if (!gScore.ContainsKey(neighbor) || tentativeGScore < gScore[neighbor])
+                if (!costs.ContainsKey(neighbor) || newCost < costs[neighbor])
                 {
-                    cameFrom[neighbor] = current;
-                    gScore[neighbor] = tentativeGScore;
-                    fScore[neighbor] = tentativeGScore + heuristic(neighbor);
-
-                    if (!openSet.Any(x => EqualityComparer<T>.Default.Equals(x.Node, neighbor)))
-                    {
-                        openSet.Add(new OpenSetEntry<T>(neighbor, fScore[neighbor]));
-                    }
+                    costs[neighbor] = newCost;
+                    previous[neighbor] = current;
+                    queue.Enqueue(neighbor, newCost);
                 }
             }
         }
@@ -168,22 +165,8 @@ public class Part1 : IPart
         return null;
     }
 
-    private static List<T> ReconstructPath<T>(Dictionary<T, T> cameFrom, T current) where T : notnull
-    {
-        var totalPath = new List<T> { current };
-        while (cameFrom.ContainsKey(current))
-        {
-            current = cameFrom[current];
-            totalPath.Insert(0, current);
-        }
-
-        return totalPath;
-    }
-    
     private record struct Path<T>(List<T> Nodes, double Cost);
-
-    private record struct OpenSetEntry<T>(T Node, double FScore);
-
+    
     private record struct Position(int X, int Y)
     {
         public static Position operator +(Position p1, Position p2)
