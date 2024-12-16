@@ -7,168 +7,133 @@ namespace AdventOfCode.Day16;
 [Part(1)]
 public class Part1 : IPart
 {
-    private const char Start = 'S';
-    private const char End = 'E';
-    private const char Wall = '#';
-    private const char Empty = '.';
-
-    private static readonly Direction Up = new(0, -1);
-    private static readonly Direction Down = new(0, 1);
-    private static readonly Direction Left = new(-1, 0);
-    private static readonly Direction Right = new(1, 0);
-
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
-        var field = input
-            .Split(Environment.NewLine)
-            .Select(line => line.ToCharArray().Select(c => c == Empty ? ' ' : c).ToArray())
-            .ToArray();
-
-        var start = FindPosition(field, Start);
-        var end = FindPosition(field, End);
-
-        var path = Dijkstra(
-            start,
-            end,
-            start + Left,
-            (current, previous) => GetNeighbors(field, current, previous),
-            Distance
-        );
-
-        if (path is null)
-        {
-            throw new InvalidOperationException("Could not find path");
-        }
-
-        for (var i = 1; i < path.Value.Nodes.Count - 1; i++)
-        {
-            var position = path.Value.Nodes[i];
-            field[position.Y][position.X] = 'x';
-        }
-
-        var result = string.Join(Environment.NewLine, field.Select(line => new string(line)));
-        Console.WriteLine(result);
-
-        var cost = path.Value.Cost;
-        return Task.FromResult(new PartResult($"{cost}", $"Cost of path: {cost}"));
+        var grid = ReadGrid(input.Split(Environment.NewLine));
+        var start = FindStart(grid);
+        var result = FindMinimumScore(grid, start);
+        return Task.FromResult(new PartResult($"{result}", $"Cost of path: {result}"));
     }
 
-    private static double Distance(Position current, Position neighbour, Position previous)
+    private static Position FindStart(char[,] grid)
     {
-        var direction = new Direction(
-            Math.Sign(current.X - previous.X),
-            Math.Sign(current.Y - previous.Y)
-        );
-
-        var newDirection = new Direction(
-            Math.Sign(neighbour.X - current.X),
-            Math.Sign(neighbour.Y - current.Y)
-        );
-
-        return direction == newDirection ? 1 : 1001;
-    }
-
-    private static Position FindPosition(char[][] field, char type)
-    {
-        for (var y = 0; y < field.Length; y++)
+        for (var i = 0; i < grid.GetLength(0); i++)
         {
-            for (var x = 0; x < field[y].Length; x++)
+            for (var j = 0; j < grid.GetLength(1); j++)
             {
-                if (field[y][x] == type)
+                if (grid[i, j] != 'S')
                 {
-                    return new Position(x, y);
+                    continue;
+                }
+
+                return new Position(i, j);
+            }
+        }
+
+        throw new InvalidOperationException("Start position not found");
+    }
+
+    private static readonly Direction Right = new(0, 1);
+    private static readonly Direction Up = new(-1, 0);
+    private static readonly Direction Left = new(0, -1);
+    private static readonly Direction Down = new(1, 0);
+
+    private static readonly List<Direction> Directions =
+    [
+        Right,
+        Up,
+        Left,
+        Down
+    ];
+
+    private static readonly int[] RotateClockwise = [1, 2, 3, 0];
+    private static readonly int[] RotateCounterClockwise = [3, 0, 1, 2];
+
+    private static int FindMinimumScore(char[,] grid, Position start)
+    {
+        var rows = grid.GetLength(0);
+        var cols = grid.GetLength(1);
+
+        var queue = new PriorityQueue<(Position, Direction), int>();
+        var score = new Dictionary<(Position, Direction), int>();
+
+        for (var i = 0; i < rows; i++)
+        {
+            for (var j = 0; j < cols; j++)
+            {
+                for (var d = 0; d < 4; d++)
+                {
+                    score[(new Position(i, j), Directions[d])] = int.MaxValue;
                 }
             }
         }
 
-        throw new InvalidOperationException($"Could not find {type} in field");
-    }
-
-    private static IEnumerable<Position> GetNeighbors(char[][] field, Position current, Position previous)
-    {
-        var directions = new List<Direction> { Up, Down, Left, Right };
-        var previousDirection = new Direction(
-            Math.Sign(current.X - previous.X),
-            Math.Sign(current.Y - previous.Y)
-        );
-        
-        if (previousDirection == Up)
-        {
-            directions.Remove(Down);
-        }
-        else if (previousDirection == Down)
-        {
-            directions.Remove(Up);
-        }
-        else if (previousDirection == Left)
-        {
-            directions.Remove(Right);
-        }
-        else if (previousDirection == Right)
-        {
-            directions.Remove(Left);
-        }
-
-        return from direction in directions
-            select current + direction
-            into newPosition
-            where newPosition.X >= 0 && newPosition.X < field[0].Length && newPosition.Y >= 0 &&
-                  newPosition.Y < field.Length
-            where field[newPosition.Y][newPosition.X] != Wall
-            select newPosition;
-    }
-
-    private static Path<T>? Dijkstra<T>(
-        T start,
-        T goal,
-        T defaultPrevious,
-        Func<T, T, IEnumerable<T>> getNeighbors,
-        Func<T, T, T, double> distance) where T : notnull
-    {
-        var queue = new PriorityQueue<T, double>();
-        var costs = new Dictionary<T, double>();
-        var previous = new Dictionary<T, T>();
-
-        queue.Enqueue(start, 0);
-        costs[start] = 0;
+        queue.Enqueue((start, Right), 0);
+        score[(start, Right)] = 0;
 
         while (queue.Count > 0)
         {
-            var current = queue.Dequeue();
+            var (pos, dir) = queue.Dequeue();
+            var currentScore = score[(pos, dir)];
 
-            if (current.Equals(goal))
+            if (grid[pos.X, pos.Y] == 'E')
             {
-                var path = new List<T> { current };
-                var cost = costs[current];
-
-                while (previous.ContainsKey(current))
-                {
-                    current = previous[current];
-                    path.Add(current);
-                }
-
-                path.Reverse();
-                return new Path<T>(path, cost);
+                return currentScore;
             }
 
-            foreach (var neighbor in getNeighbors(current, previous.GetValueOrDefault(current, defaultPrevious)))
+            var newPos = pos + dir;
+            
+            if (IsValidMove(newPos, grid))
             {
-                var newCost = costs[current] + distance(current, neighbor, previous.GetValueOrDefault(current, defaultPrevious));
-
-                if (!costs.ContainsKey(neighbor) || newCost < costs[neighbor])
+                if (currentScore + 1 < score[(newPos, dir)])
                 {
-                    costs[neighbor] = newCost;
-                    previous[neighbor] = current;
-                    queue.Enqueue(neighbor, newCost);
+                    score[(newPos, dir)] = currentScore + 1;
+                    queue.Enqueue((newPos, dir), currentScore + 1);
                 }
+            }
+            
+            var newDirClockwise = Directions[RotateClockwise[Directions.IndexOf(dir)]];
+            if (currentScore + 1000 < score[(pos, newDirClockwise)])
+            {
+                score[(pos, newDirClockwise)] = currentScore + 1000;
+                queue.Enqueue((pos, newDirClockwise), currentScore + 1000);
+            }
+            
+            var newDirCounterClockwise = Directions[RotateCounterClockwise[Directions.IndexOf(dir)]];
+            if (currentScore + 1000 < score[(pos, newDirCounterClockwise)])
+            {
+                score[(pos, newDirCounterClockwise)] = currentScore + 1000;
+                queue.Enqueue((pos, newDirCounterClockwise), currentScore + 1000);
+            }
+        }
+        
+        return -1;
+    }
+
+    private static bool IsValidMove(Position p, char[,] grid)
+    {
+        var rows = grid.GetLength(0);
+        var cols = grid.GetLength(1);
+        return p is { X: >= 0, Y: >= 0 } && p.X < rows && p.Y < cols && grid[p.X, p.Y] != '#';
+    }
+
+    private static char[,] ReadGrid(string[] input)
+    {
+        var rows = input.Length;
+        var cols = input[0].Length;
+        var grid = new char[rows, cols];
+
+        for (var i = 0; i < rows; i++)
+        {
+            for (var j = 0; j < cols; j++)
+            {
+                grid[i, j] = input[i][j];
             }
         }
 
-        return null;
+        return grid;
     }
 
-    private record struct Path<T>(List<T> Nodes, double Cost);
-    
     private record struct Position(int X, int Y)
     {
         public static Position operator +(Position p1, Position p2)
