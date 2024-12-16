@@ -21,7 +21,7 @@ public class Part1 : IPart
     {
         var field = input
             .Split(Environment.NewLine)
-            .Select(line => line.ToCharArray())
+            .Select(line => line.ToCharArray().Select(c => c == Empty ? ' ' : c).ToArray())
             .ToArray();
 
         var start = FindPosition(field, Start);
@@ -30,6 +30,7 @@ public class Part1 : IPart
         var path = Dijkstra(
             start,
             end,
+            start + Left,
             (current, previous) => GetNeighbors(field, current, previous),
             Distance
         );
@@ -90,7 +91,7 @@ public class Part1 : IPart
             Math.Sign(current.X - previous.X),
             Math.Sign(current.Y - previous.Y)
         );
-
+        
         if (previousDirection == Up)
         {
             directions.Remove(Down);
@@ -120,6 +121,7 @@ public class Part1 : IPart
     private static Path<T>? Dijkstra<T>(
         T start,
         T goal,
+        T defaultPrevious,
         Func<T, T, IEnumerable<T>> getNeighbors,
         Func<T, T, T, double> distance) where T : notnull
     {
@@ -149,9 +151,9 @@ public class Part1 : IPart
                 return new Path<T>(path, cost);
             }
 
-            foreach (var neighbor in getNeighbors(current, previous.GetValueOrDefault(current, current)))
+            foreach (var neighbor in getNeighbors(current, previous.GetValueOrDefault(current, defaultPrevious)))
             {
-                var newCost = costs[current] + distance(current, neighbor, previous.GetValueOrDefault(current, current));
+                var newCost = costs[current] + distance(current, neighbor, previous.GetValueOrDefault(current, defaultPrevious));
 
                 if (!costs.ContainsKey(neighbor) || newCost < costs[neighbor])
                 {
