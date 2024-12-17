@@ -20,52 +20,63 @@ public partial class Part2 : IPart
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
         var computer = ParseComputer(input);
-
-        var output = new List<int>();
-        var a = 76000000;
-        while (output.Count != computer.Program.Length || !output.SequenceEqual(computer.Program))
-        {
-            a++;
-            output.Clear();
-            if (a % 1000000 == 0)
-            {
-                Console.WriteLine($"A: {a}");
-            }
-
-            var registerA = a;
-            var registerB = 0;
-            var registerC = 0;
-            var instructionPointer = 0;
-            while (instructionPointer < computer.Program.Length)
-            {
-                var instruction = computer.Program[instructionPointer];
-                var instructionOutput = ExecuteInstruction(instruction, computer.Program, ref instructionPointer,
-                    ref registerA, ref registerB, ref registerC);
-                if (!instructionOutput.HasValue)
-                {
-                    continue;
-                }
-
-                output.Add(instructionOutput.Value);
-                if (output.Count >= computer.Program.Length)
-                {
-                    break;
-                }
-            }
-        }
-
+        var a = FindA(computer.Program, computer.Program).Min();
         return Task.FromResult(new PartResult($"{a}", $"Output: {a}"));
     }
 
-    private static int? ExecuteInstruction(int instruction, int[] instructions, ref int instructionPointer,
-        ref int registerA, ref int registerB, ref int registerC)
+    private static IEnumerable<long> FindA(long[] program, long[] output)
+    {
+        if (output.Length == 0)
+        {
+            yield return 0;
+            yield break;
+        }
+
+        foreach (var ahigh in FindA(program, output[1..]))
+        {
+            for (var alow = 0; alow < 8; alow++)
+            {
+                var a = ahigh * 8 + alow;
+                if (Run(a, program).SequenceEqual(output))
+                {
+                    yield return a;
+                }
+            }
+        }
+    }
+
+    private static List<long> Run(long a, long[] instructions)
+    {
+        var output = new List<long>();
+        var registerA = a;
+        var registerB = 0L;
+        var registerC = 0L;
+        var instructionPointer = 0L;
+        while (instructionPointer < instructions.Length)
+        {
+            var instruction = instructions[instructionPointer];
+            var instructionOutput = ExecuteInstruction(instruction, instructions, ref instructionPointer,
+                ref registerA, ref registerB, ref registerC);
+            if (!instructionOutput.HasValue)
+            {
+                continue;
+            }
+
+            output.Add(instructionOutput.Value);
+        }
+
+        return output;
+    }
+
+    private static long? ExecuteInstruction(long instruction, long[] instructions, ref long instructionPointer,
+        ref long registerA, ref long registerB, ref long registerC)
     {
         switch (instruction)
         {
             case OpCodeAdv:
                 var operandAdv = GetComboOperand(instructionPointer, instructions, ref registerA, ref registerB,
                     ref registerC);
-                registerA = (int)(registerA / Math.Pow(2, operandAdv.Combo));
+                registerA = (long)(registerA / Math.Pow(2, operandAdv.Combo));
                 instructionPointer += 2;
                 return null;
             case OpCodeBxl:
@@ -110,7 +121,7 @@ public partial class Part2 : IPart
             case OpCodeCdv:
                 var operandCdv = GetComboOperand(instructionPointer, instructions, ref registerA, ref registerB,
                     ref registerC);
-                registerC = (int)(registerA / Math.Pow(2, operandCdv.Combo));
+                registerC = (long)(registerA / Math.Pow(2, operandCdv.Combo));
                 instructionPointer += 2;
                 return null;
             default:
@@ -118,9 +129,9 @@ public partial class Part2 : IPart
         }
     }
 
-    private static (int Literal, int Combo) GetComboOperand(int instructionPointer, int[] instructions,
-        ref int registerA, ref int registerB,
-        ref int registerC)
+    private static (long Literal, long Combo) GetComboOperand(long instructionPointer, long[] instructions,
+        ref long registerA, ref long registerB,
+        ref long registerC)
     {
         var nextInstructionPointer = instructionPointer + 1;
         if (nextInstructionPointer >= instructions.Length)
@@ -144,45 +155,21 @@ public partial class Part2 : IPart
 
     private static Computer ParseComputer(string input)
     {
-        var registerA = 0;
-        var registerB = 0;
-        var registerC = 0;
-        List<int> program = [];
+        List<long> program = [];
 
         foreach (var line in input.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
         {
-            var match = RegisterRegex().Match(line);
+            var match = ProgramRegex().Match(line);
             if (match.Success)
             {
-                var value = int.Parse(match.Groups["Value"].Value);
-                switch (match.Groups["Register"].Value)
-                {
-                    case "A":
-                        registerA = value;
-                        break;
-                    case "B":
-                        registerB = value;
-                        break;
-                    case "C":
-                        registerC = value;
-                        break;
-                }
-            }
-
-            match = ProgramRegex().Match(line);
-            if (match.Success)
-            {
-                program.AddRange(match.Groups["Instructions"].Value.Split(",").Select(int.Parse));
+                program.AddRange(match.Groups["Instructions"].Value.Split(",").Select(long.Parse));
             }
         }
 
-        return new Computer(registerA, registerB, registerC, program.ToArray());
+        return new Computer(program.ToArray());
     }
 
-    private record struct Computer(int RegisterA, int RegisterB, int RegisterC, int[] Program);
-
-    [GeneratedRegex(@"Register (?<Register>A|B|C): (?<Value>\d+)")]
-    private static partial Regex RegisterRegex();
+    private record struct Computer(long[] Program);
 
     [GeneratedRegex("Program: (?<Instructions>.*)")]
     private static partial Regex ProgramRegex();

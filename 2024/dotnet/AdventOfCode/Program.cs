@@ -1,5 +1,7 @@
 ﻿using System.CommandLine;
+using System.CommandLine.Builder;
 using System.CommandLine.IO;
+using System.CommandLine.Parsing;
 using System.Reflection;
 using AdventOfCode;
 using AdventOfCode.Days;
@@ -98,4 +100,7 @@ rootCommand.SetHandler(async ctx =>
     ctx.ExitCode = 0;
 });
 
-return await rootCommand.InvokeAsync(args);
+var commandBuilder = new CommandLineBuilder(rootCommand);
+commandBuilder.UseDefaults();
+var parser = commandBuilder.Build();
+return await parser.InvokeAsync(args);
