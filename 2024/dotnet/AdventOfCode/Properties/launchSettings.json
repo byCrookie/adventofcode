@@ -3,7 +3,7 @@
   "profiles": {
     "AdventOfCode": {
       "commandName": "Project",
-      "commandLineArgs": "--day 18 --part 2",
+      "commandLineArgs": "--day 19 --part 2",
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development",
         "ASPNETCORE_ENVIRONMENT": "Development"
@@ -11,7 +11,7 @@
     },
     "AdventOfCode Sample": {
       "commandName": "Project",
-      "commandLineArgs": "--day 18 --part 2 --sample",
+      "commandLineArgs": "--day 19 --part 2 --sample",
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development",
         "ASPNETCORE_ENVIRONMENT": "Development"
