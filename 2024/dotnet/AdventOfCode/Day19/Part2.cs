@@ -1,6 +1,4 @@
-﻿using System.Buffers;
-using System.Runtime.InteropServices;
-using AdventOfCode.Days;
+﻿using AdventOfCode.Days;
 using AdventOfCode.Measure;
 
 namespace AdventOfCode.Day19;
