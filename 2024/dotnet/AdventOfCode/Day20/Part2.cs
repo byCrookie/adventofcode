@@ -45,7 +45,7 @@ public class Part2 : IPart
 
         Console.WriteLine($"Length: {path.Value.Cost}");
 
-        var cheats = new Dictionary<(Position CheatStart, Position CheatEnd), (int Cost, int Save)>();
+        var cheats = new Dictionary<int, int>();
         var index = 1;
         foreach (var node in path.Value.Nodes)
         {
@@ -55,43 +55,40 @@ public class Part2 : IPart
             foreach (var otherNode in path.Value.Nodes)
             {
                 var distance = Position.Manhattan(node.Position, otherNode.Position);
+
+                if (distance > 20)
+                {
+                    continue;
+                }
+
                 var costStartToOther = path.Value.Costs[otherNode];
                 var costOtherToEnd = path.Value.Costs[new Node(end)] - costStartToOther;
                 var cost = costStartToNode + distance + costOtherToEnd;
-                var save = path.Value.Cost - cost;
+                var save = (int)(path.Value.Cost - cost);
 
                 if (save < MinSave)
                 {
                     continue;
                 }
 
-                if (cheats.TryGetValue((otherNode.Position, node.Position), out var existing))
+                if (!cheats.TryAdd(save, 1))
                 {
-                    if (save > existing.Save)
-                    {
-                        cheats[(otherNode.Position, node.Position)] = ((int)cost, (int)save);
-                    }
-
-                    continue;
+                    cheats[save]++;
                 }
-
-                cheats.Add((otherNode.Position, node.Position), ((int)cost, (int)save));
             }
 
             index++;
         }
-        
-        foreach (var group in cheats
-                     .GroupBy(c => c.Value.Save)
-                     .OrderBy(g => g.Key)
-                     .ThenByDescending(g => g.Count()))
+
+        foreach (var group in cheats.GroupBy(c => c.Key).OrderBy(g => g.Key).ThenByDescending(g => g.Single().Value))
         {
             Console.WriteLine(
-                $"- There are {group.Count()} cheats that save {group.Key} picoseconds.");
+                $"- There are {group.Single().Value} cheats that save {group.Key} picoseconds.");
         }
 
-        return Task.FromResult(new PartResult($"{cheats.Count}",
-            $"Cheats saving at least {MinSave} picoseconds: {cheats.Count}"));
+        var cheatsCount = cheats.Sum(c => c.Value);
+        return Task.FromResult(new PartResult($"{cheatsCount}",
+            $"Cheats saving at least {MinSave} picoseconds: {cheatsCount}"));
     }
 
     private static void Print(char[][] field, List<Position> path)
