@@ -19,7 +19,7 @@ public class Part2 : IPart
     private static readonly Direction Left = new(-1, 0);
     private static readonly Direction Right = new(1, 0);
 
-    private static readonly Direction[] Directions = [Up, Down, Left, Right];
+    private const int MinSave = 50;
 
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
@@ -46,57 +46,46 @@ public class Part2 : IPart
 
         Console.WriteLine($"Length: {path.Value.Cost}");
 
-        var cheatedLengths = new List<int>();
+        var cheatedLengths = new List<(Position CheatStart, Position CheatEnd, int Cost)>();
         var index = 1;
         foreach (var node in path.Value.Nodes)
         {
             Console.WriteLine($"Cheat ({index}/{path.Value.Nodes.Count}): {node.Position.X},{node.Position.Y}");
-            
-            var pathToCheat = Dijkstra(
-                [new Node(start)],
-                [new Node(node.Position)],
-                n => GetNeighbors(field, n),
-                (_, _) => 1
-            );
-            
-            if (pathToCheat is null)
+            var costStartToNode = path.Value.Costs[node];
+
+            var positionsInCheatRadius = CheatRadius(field, node.Position)
+                .Where(p => p.Value == Empty)
+                .Select(p => p.Key)
+                .Distinct()
+                .ToList();
+
+            foreach (var cheatPosition in positionsInCheatRadius)
             {
-                throw new UnreachableException();
+                var costStartToCheat = path.Value.Costs[new Node(cheatPosition)];
+                var cost = path.Value.Cost - costStartToCheat + costStartToNode;
+                cheatedLengths.Add((node.Position, cheatPosition, (int)cost));
             }
 
-            var positionsInCheatRadius = CheatRadius(field, node.Position);
-            var emptyPositions = positionsInCheatRadius.Where(p => p.Value == Empty).ToList();
-
-            foreach (var emptyPosition in emptyPositions)
-            {
-                var cheatedPath = Dijkstra(
-                    [new Node(emptyPosition.Key)],
-                    [new Node(end)],
-                    n => GetNeighbors(field, n),
-                    (_, _) => 1
-                );
-
-                if (cheatedPath is null)
-                {
-                    throw new UnreachableException();
-                }
-
-                cheatedLengths.Add((int)(pathToCheat.Value.Cost + cheatedPath.Value.Cost));
-            }
-
-            // Console.WriteLine($"Cheat: {cheat.x},{cheat.y}, Length: {cheatedPath.Value.Cost}");
             index++;
         }
 
-        var grouped = cheatedLengths.Where(c => path.Value.Cost - c >= 50).GroupBy(c => c);
-        foreach (var group in grouped.OrderByDescending(g => g.Count()).ThenBy(g => path.Value.Cost - g.Key))
+        var costsOverMinSave = cheatedLengths
+            .Where(c => path.Value.Cost - c.Cost >= MinSave)
+            .GroupBy(c => (c.CheatStart, c.CheatEnd))
+            .Select(g => g.ToList().MinBy(t => t.Cost))
+            .ToList();
+
+        foreach (var group in costsOverMinSave
+                     .GroupBy(c => c.Cost)
+                     .OrderBy(g => path.Value.Cost - g.Key)
+                     .ThenByDescending(g => g.Count()))
         {
             Console.WriteLine(
                 $"- There are {group.Count()} cheats that save {path.Value.Cost - group.Key} picoseconds.");
         }
 
-        var cheats = cheatedLengths.Count(l => path.Value.Cost - l >= 50);
-        return Task.FromResult(new PartResult($"{cheats}", $"Cheats saving at least 100 picoseconds: {cheats}"));
+        var cheats = costsOverMinSave.Count;
+        return Task.FromResult(new PartResult($"{cheats}", $"Cheats saving at least {MinSave} picoseconds: {cheats}"));
     }
 
     private static Dictionary<Position, char> CheatRadius(char[][] field, Position pos)
@@ -111,77 +100,17 @@ public class Part2 : IPart
                 {
                     continue;
                 }
+                
+                if (Math.Abs(x - pos.X) + Math.Abs(y - pos.Y) > radius)
+                {
+                    continue;
+                }
 
                 positionsInRadius[new Position(x, y)] = field[y][x];
             }
         }
 
         return positionsInRadius;
-    }
-
-    private static Direction DirectionToEmptyNeighbour(char[][] field, Position start)
-    {
-        foreach (var direction in Directions)
-        {
-            var neighbour = start + direction;
-            if (InBounds(field, neighbour) && field[neighbour.Y][neighbour.X] == Empty)
-            {
-                return direction;
-            }
-        }
-
-        throw new InvalidOperationException("Could not find empty neighbour");
-    }
-
-    private static void Walk(char[][] field, Position position, Direction direction, List<int> paths, int path)
-    {
-        if (field[position.Y][position.X] == End)
-        {
-            paths.Add(path + 1);
-            return;
-        }
-
-        foreach (var nextDirection in AllowedDirections(direction))
-        {
-            var newPosition = position + nextDirection;
-
-            if (!InBounds(field, newPosition) || field[newPosition.Y][newPosition.X] == Wall)
-            {
-                continue;
-            }
-
-            Walk(field, newPosition, nextDirection, paths, path + 1);
-        }
-    }
-
-    private static Direction[] AllowedDirections(Direction direction)
-    {
-        if (direction == Up)
-        {
-            return [Up, Left, Right];
-        }
-
-        if (direction == Down)
-        {
-            return [Down, Left, Right];
-        }
-
-        if (direction == Left)
-        {
-            return [Up, Down, Left];
-        }
-
-        if (direction == Right)
-        {
-            return [Up, Down, Right];
-        }
-
-        throw new InvalidOperationException($"Unknown direction {direction}");
-    }
-
-    private static bool InBounds(char[][] field, Position pos)
-    {
-        return pos.X >= 0 && pos.X < field[0].Length && pos.Y >= 0 && pos.Y < field.Length;
     }
 
     private static void Print(char[][] field, List<Position> path)
@@ -263,7 +192,7 @@ public class Part2 : IPart
                 }
 
                 path.Reverse();
-                return new Path<T>(path, cost);
+                return new Path<T>(path, cost, costs);
             }
 
             foreach (var neighbor in getNeighbors(current))
@@ -282,7 +211,7 @@ public class Part2 : IPart
         return null;
     }
 
-    private record struct Path<T>(List<T> Nodes, double Cost);
+    private record struct Path<T>(List<T> Nodes, double Cost, Dictionary<T, double> Costs) where T : notnull;
 
     private record struct Node(Position Position);
 
