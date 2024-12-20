@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 using AdventOfCode.Days;
 using AdventOfCode.Measure;
 
@@ -36,27 +37,58 @@ public class Part1 : IPart
 
         Print(field, []);
         var start = FindPosition(field, Start);
-        var baseDirection = DirectionToEmptyNeighbour(field, start);
-        var basePaths = new List<int>();
-        Walk(field, start, baseDirection, basePaths, 1);
-        var basePath = basePaths.Single();
+        var end = FindPosition(field, End);
 
-        foreach (var cheat in wallsWithoutBorder)
+        var path = Dijkstra(
+            [new Node(start)],
+            [new Node(end)],
+            n => GetNeighbors(field, n),
+            (_, _) => 1
+        );
+
+        if (path is null)
         {
-            field[cheat.y][cheat.x] = Empty;
-
-            var dir = DirectionToEmptyNeighbour(field, start);
-            var paths = new List<int>();
-            Walk(field, start, dir, paths, 1);
-            foreach (var path in paths)
-            {
-                Console.WriteLine($"Cheat: {cheat.x},{cheat.y}, Length: {path}");
-            }
-
-            field[cheat.y][cheat.x] = Wall;
+            throw new UnreachableException();
         }
 
-        return Task.FromResult(new PartResult($"{1}", $"Possible Design Combinations: {1}"));
+        Console.WriteLine($"Length: {path.Value.Cost}");
+
+        var cheatedLengths = new List<int>();
+        var index = 1;
+        foreach (var cheat in wallsWithoutBorder)
+        {
+            Console.WriteLine($"Cheat ({index}/{wallsWithoutBorder.Count}): {cheat.x},{cheat.y}");
+            
+            field[cheat.y][cheat.x] = Empty;
+
+            var cheatedPath = Dijkstra(
+                [new Node(start)],
+                [new Node(end)],
+                n => GetNeighbors(field, n),
+                (_, _) => 1
+            );
+
+            if (cheatedPath is null)
+            {
+                throw new UnreachableException();
+            }
+
+            cheatedLengths.Add((int)cheatedPath.Value.Cost);
+            // Console.WriteLine($"Cheat: {cheat.x},{cheat.y}, Length: {cheatedPath.Value.Cost}");
+
+            field[cheat.y][cheat.x] = Wall;
+            index++;
+        }
+
+        // var grouped = cheatedLengths.GroupBy(c => c);
+        // foreach (var group in grouped.OrderByDescending(g => g.Count()).ThenBy(g => path.Value.Cost - g.Key))
+        // {
+        //     Console.WriteLine(
+        //         $"- There are {group.Count()} cheats that save {path.Value.Cost - group.Key} picoseconds.");
+        // }
+
+        var cheats = cheatedLengths.Count(l => path.Value.Cost - l >= 100);
+        return Task.FromResult(new PartResult($"{cheats}", $"Cheats saving at least 100 picoseconds: {cheats}"));
     }
 
     private static Direction DirectionToEmptyNeighbour(char[][] field, Position start)
@@ -157,6 +189,74 @@ public class Part1 : IPart
 
         throw new InvalidOperationException($"Could not find {c}");
     }
+
+    private static IEnumerable<Node> GetNeighbors(char[][] field, Node current)
+    {
+        var directions = new List<Direction> { Up, Down, Left, Right };
+        return from direction in directions
+            select new Node(current.Position + direction)
+            into newPosition
+            where newPosition.Position.X >= 0 && newPosition.Position.X < field[0].Length &&
+                  newPosition.Position.Y >= 0 &&
+                  newPosition.Position.Y < field.Length
+            where field[newPosition.Position.Y][newPosition.Position.X] != Wall
+            select newPosition;
+    }
+
+    private static Path<T>? Dijkstra<T>(
+        List<T> starts,
+        List<T> goals,
+        Func<T, IEnumerable<T>> getNeighbors,
+        Func<T, T, double> distance) where T : notnull
+    {
+        var queue = new PriorityQueue<T, double>();
+        var costs = new Dictionary<T, double>();
+        var previous = new Dictionary<T, T>();
+
+        foreach (var start in starts)
+        {
+            queue.Enqueue(start, 0);
+            costs[start] = 0;
+        }
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+
+            if (goals.Contains(current))
+            {
+                var path = new List<T> { current };
+                var cost = costs[current];
+
+                while (previous.ContainsKey(current))
+                {
+                    current = previous[current];
+                    path.Add(current);
+                }
+
+                path.Reverse();
+                return new Path<T>(path, cost);
+            }
+
+            foreach (var neighbor in getNeighbors(current))
+            {
+                var newCost = costs[current] + distance(current, neighbor);
+
+                if (!costs.ContainsKey(neighbor) || newCost < costs[neighbor])
+                {
+                    costs[neighbor] = newCost;
+                    previous[neighbor] = current;
+                    queue.Enqueue(neighbor, newCost);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private record struct Path<T>(List<T> Nodes, double Cost);
+
+    private record struct Node(Position Position);
 
     private record struct Position(int X, int Y)
     {
