@@ -12,7 +12,6 @@ public class Part2 : IPart
     private const char Start = 'S';
     private const char End = 'E';
     private const char Wall = '#';
-    private const char Empty = '.';
 
     private static readonly Direction Up = new(0, -1);
     private static readonly Direction Down = new(0, 1);
@@ -46,7 +45,7 @@ public class Part2 : IPart
 
         Console.WriteLine($"Length: {path.Value.Cost}");
 
-        var cheatedLengths = new List<(Position CheatStart, Position CheatEnd, int Cost)>();
+        var cheats = new Dictionary<(Position CheatStart, Position CheatEnd), (int Cost, int Save)>();
         var index = 1;
         foreach (var node in path.Value.Nodes)
         {
@@ -59,29 +58,40 @@ public class Part2 : IPart
                 var costStartToOther = path.Value.Costs[otherNode];
                 var costOtherToEnd = path.Value.Costs[new Node(end)] - costStartToOther;
                 var cost = costStartToNode + distance + costOtherToEnd;
-                cheatedLengths.Add((node.Position, otherNode.Position, (int)cost));    
+                var save = path.Value.Cost - cost;
+
+                if (save < MinSave)
+                {
+                    continue;
+                }
+
+                if (cheats.TryGetValue((otherNode.Position, node.Position), out var existing))
+                {
+                    if (save > existing.Save)
+                    {
+                        cheats[(otherNode.Position, node.Position)] = ((int)cost, (int)save);
+                    }
+
+                    continue;
+                }
+
+                cheats.Add((node.Position, otherNode.Position), ((int)cost, (int)save));
             }
 
             index++;
         }
 
-        var costsOverMinSave = cheatedLengths
-            .Where(c => path.Value.Cost - c.Cost >= MinSave)
-            .GroupBy(c => (c.CheatStart, c.CheatEnd))
-            .Select(g => g.ToList().MinBy(t => t.Cost))
-            .ToList();
-
-        foreach (var group in costsOverMinSave
-                     .GroupBy(c => c.Cost)
-                     .OrderBy(g => path.Value.Cost - g.Key)
+        foreach (var group in cheats
+                     .GroupBy(c => c.Value.Save)
+                     .OrderBy(g => g.Key)
                      .ThenByDescending(g => g.Count()))
         {
             Console.WriteLine(
-                $"- There are {group.Count()} cheats that save {path.Value.Cost - group.Key} picoseconds.");
+                $"- There are {group.Count()} cheats that save {group.Key} picoseconds.");
         }
 
-        var cheats = costsOverMinSave.Count;
-        return Task.FromResult(new PartResult($"{cheats}", $"Cheats saving at least {MinSave} picoseconds: {cheats}"));
+        return Task.FromResult(new PartResult($"{cheats.Count}",
+            $"Cheats saving at least {MinSave} picoseconds: {cheats.Count}"));
     }
 
     private static void Print(char[][] field, List<Position> path)
@@ -202,7 +212,7 @@ public class Part2 : IPart
         {
             return new Position(p1.X + dir.X, p1.Y + dir.Y);
         }
-        
+
         public static int Manhattan(Position p1, Position p2)
         {
             return Math.Abs(p1.X - p2.X) + Math.Abs(p1.Y - p2.Y);
