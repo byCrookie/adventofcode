@@ -37,22 +37,22 @@ public class Part1 : IPart
         Print(field, []);
         var start = FindPosition(field, Start);
         var baseDirection = DirectionToEmptyNeighbour(field, start);
-        var basePaths = new List<List<Position>>();
-        Walk(field, start, baseDirection, basePaths, [start]);
+        var basePaths = new List<int>();
+        Walk(field, start, baseDirection, basePaths, 1);
         var basePath = basePaths.Single();
 
         foreach (var cheat in wallsWithoutBorder)
         {
             field[cheat.y][cheat.x] = Empty;
-            
+
             var dir = DirectionToEmptyNeighbour(field, start);
-            var paths = new List<List<Position>>();
-            Walk(field, start, dir, paths, [start]);
+            var paths = new List<int>();
+            Walk(field, start, dir, paths, 1);
             foreach (var path in paths)
             {
-                Console.WriteLine($"Cheat: {cheat.x},{cheat.y}, Length: {path.Count}");
+                Console.WriteLine($"Cheat: {cheat.x},{cheat.y}, Length: {path}");
             }
-            
+
             field[cheat.y][cheat.x] = Wall;
         }
 
@@ -73,13 +73,11 @@ public class Part1 : IPart
         throw new InvalidOperationException("Could not find empty neighbour");
     }
 
-    private static void Walk(char[][] field, Position position, Direction direction, List<List<Position>> paths,
-        List<Position> path)
+    private static void Walk(char[][] field, Position position, Direction direction, List<int> paths, int path)
     {
         if (field[position.Y][position.X] == End)
         {
-            path.Add(position);
-            paths.Add(path);
+            paths.Add(path + 1);
             return;
         }
 
@@ -92,8 +90,7 @@ public class Part1 : IPart
                 continue;
             }
 
-            path.Add(position);
-            Walk(field, newPosition, nextDirection, paths, path.ToList());
+            Walk(field, newPosition, nextDirection, paths, path + 1);
         }
     }
 
