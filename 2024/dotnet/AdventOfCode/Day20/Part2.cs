@@ -18,7 +18,7 @@ public class Part2 : IPart
     private static readonly Direction Left = new(-1, 0);
     private static readonly Direction Right = new(1, 0);
 
-    private const int MinSave = 50;
+    private const int MinSave = 100;
 
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
@@ -75,12 +75,12 @@ public class Part2 : IPart
                     continue;
                 }
 
-                cheats.Add((node.Position, otherNode.Position), ((int)cost, (int)save));
+                cheats.Add((otherNode.Position, node.Position), ((int)cost, (int)save));
             }
 
             index++;
         }
-
+        
         foreach (var group in cheats
                      .GroupBy(c => c.Value.Save)
                      .OrderBy(g => g.Key)
