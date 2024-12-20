@@ -51,19 +51,25 @@ public class Part2 : IPart
         foreach (var node in path.Value.Nodes)
         {
             Console.WriteLine($"Cheat ({index}/{path.Value.Nodes.Count}): {node.Position.X},{node.Position.Y}");
-            var costStartToNode = path.Value.Costs[node];
+            var costStartToCheatStart = path.Value.Costs[node] + 1;
+            var cheatStarts = GetNeighborWalls(field, node).ToList();
 
-            var positionsInCheatRadius = CheatRadius(field, node.Position)
-                .Where(p => p.Value == Empty)
-                .Select(p => p.Key)
-                .Distinct()
-                .ToList();
-
-            foreach (var cheatPosition in positionsInCheatRadius)
+            foreach (var cheatStart in cheatStarts)
             {
-                var costStartToCheat = path.Value.Costs[new Node(cheatPosition)];
-                var cost = path.Value.Cost - costStartToCheat + costStartToNode;
-                cheatedLengths.Add((node.Position, cheatPosition, (int)cost));
+                var positionsInCheatRadius = CheatRadius(field, cheatStart.Position)
+                    .Where(p => p.Value == Empty)
+                    .Select(p => p.Key)
+                    .Distinct()
+                    .ToList();
+
+                foreach (var cheatPosition in positionsInCheatRadius)
+                {
+                    var costStartToCheat = path.Value.Costs[new Node(cheatPosition)];
+                    var costCheatToEnd = path.Value.Costs[new Node(end)] - costStartToCheat;
+                    var cost = costStartToCheatStart + Math.Abs(cheatStart.Position.X - cheatPosition.X) +
+                               Math.Abs(cheatStart.Position.Y - cheatPosition.Y) + costCheatToEnd;
+                    cheatedLengths.Add((cheatStart.Position, cheatPosition, (int)cost));
+                }
             }
 
             index++;
@@ -145,6 +151,19 @@ public class Part2 : IPart
         }
 
         throw new InvalidOperationException($"Could not find {c}");
+    }
+    
+    private static IEnumerable<Node> GetNeighborWalls(char[][] field, Node current)
+    {
+        var directions = new List<Direction> { Up, Down, Left, Right };
+        return from direction in directions
+            select new Node(current.Position + direction)
+            into newPosition
+            where newPosition.Position.X >= 0 && newPosition.Position.X < field[0].Length &&
+                  newPosition.Position.Y >= 0 &&
+                  newPosition.Position.Y < field.Length
+            where field[newPosition.Position.Y][newPosition.Position.X] == Wall
+            select newPosition;
     }
 
     private static IEnumerable<Node> GetNeighbors(char[][] field, Node current)
