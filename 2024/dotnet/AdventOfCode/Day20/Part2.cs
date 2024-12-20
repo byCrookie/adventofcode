@@ -51,25 +51,15 @@ public class Part2 : IPart
         foreach (var node in path.Value.Nodes)
         {
             Console.WriteLine($"Cheat ({index}/{path.Value.Nodes.Count}): {node.Position.X},{node.Position.Y}");
-            var costStartToCheatStart = path.Value.Costs[node] + 1;
-            var cheatStarts = GetNeighborWalls(field, node).ToList();
+            var costStartToNode = path.Value.Costs[node];
 
-            foreach (var cheatStart in cheatStarts)
+            foreach (var otherNode in path.Value.Nodes)
             {
-                var positionsInCheatRadius = CheatRadius(field, cheatStart.Position)
-                    .Where(p => p.Value == Empty)
-                    .Select(p => p.Key)
-                    .Distinct()
-                    .ToList();
-
-                foreach (var cheatPosition in positionsInCheatRadius)
-                {
-                    var costStartToCheat = path.Value.Costs[new Node(cheatPosition)];
-                    var costCheatToEnd = path.Value.Costs[new Node(end)] - costStartToCheat;
-                    var cost = costStartToCheatStart + Math.Abs(cheatStart.Position.X - cheatPosition.X) +
-                               Math.Abs(cheatStart.Position.Y - cheatPosition.Y) + costCheatToEnd;
-                    cheatedLengths.Add((cheatStart.Position, cheatPosition, (int)cost));
-                }
+                var distance = Position.Manhattan(node.Position, otherNode.Position);
+                var costStartToOther = path.Value.Costs[otherNode];
+                var costOtherToEnd = path.Value.Costs[new Node(end)] - costStartToOther;
+                var cost = costStartToNode + distance + costOtherToEnd;
+                cheatedLengths.Add((node.Position, otherNode.Position, (int)cost));    
             }
 
             index++;
@@ -92,31 +82,6 @@ public class Part2 : IPart
 
         var cheats = costsOverMinSave.Count;
         return Task.FromResult(new PartResult($"{cheats}", $"Cheats saving at least {MinSave} picoseconds: {cheats}"));
-    }
-
-    private static Dictionary<Position, char> CheatRadius(char[][] field, Position pos)
-    {
-        const int radius = 20;
-        var positionsInRadius = new Dictionary<Position, char>();
-        for (var y = pos.Y - radius; y <= pos.Y + radius; y++)
-        {
-            for (var x = pos.X - radius; x <= pos.X + radius; x++)
-            {
-                if (x < 0 || x >= field[0].Length || y < 0 || y >= field.Length)
-                {
-                    continue;
-                }
-                
-                if (Math.Abs(x - pos.X) + Math.Abs(y - pos.Y) > radius)
-                {
-                    continue;
-                }
-
-                positionsInRadius[new Position(x, y)] = field[y][x];
-            }
-        }
-
-        return positionsInRadius;
     }
 
     private static void Print(char[][] field, List<Position> path)
@@ -151,19 +116,6 @@ public class Part2 : IPart
         }
 
         throw new InvalidOperationException($"Could not find {c}");
-    }
-    
-    private static IEnumerable<Node> GetNeighborWalls(char[][] field, Node current)
-    {
-        var directions = new List<Direction> { Up, Down, Left, Right };
-        return from direction in directions
-            select new Node(current.Position + direction)
-            into newPosition
-            where newPosition.Position.X >= 0 && newPosition.Position.X < field[0].Length &&
-                  newPosition.Position.Y >= 0 &&
-                  newPosition.Position.Y < field.Length
-            where field[newPosition.Position.Y][newPosition.Position.X] == Wall
-            select newPosition;
     }
 
     private static IEnumerable<Node> GetNeighbors(char[][] field, Node current)
@@ -249,6 +201,11 @@ public class Part2 : IPart
         public static Position operator +(Position p1, Direction dir)
         {
             return new Position(p1.X + dir.X, p1.Y + dir.Y);
+        }
+        
+        public static int Manhattan(Position p1, Position p2)
+        {
+            return Math.Abs(p1.X - p2.X) + Math.Abs(p1.Y - p2.Y);
         }
     }
 
