@@ -17,7 +17,7 @@ public partial class Part1 : IPart
     private static readonly Direction Left = new('<', -1, 0);
     private static readonly Direction Right = new('>', 1, 0);
 
-    private static readonly List<Direction> Directions = [Left,Right,Up,Down];
+    private static readonly List<Direction> Directions = [Left, Up, Down, Right];
 
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
@@ -33,7 +33,14 @@ public partial class Part1 : IPart
         };
 
         var buttonsNumbericKeyPad = ButtonsOnKeyPad(numericKeyPad);
-        var numericKeyPadWays = NumericKeyPadWays(buttonsNumbericKeyPad, numericKeyPad);
+        var numericKeyPadWays = KeyPadWays(buttonsNumbericKeyPad, numericKeyPad, Directions);
+
+        Console.WriteLine("Numeric Key Pad");
+        foreach (var padWay in numericKeyPadWays.OrderBy(k => k.Key.From).ThenBy(k => k.Key.To))
+        {
+            Console.WriteLine(
+                $"| {padWay.Key.From} - {padWay.Key.To}: {string.Join("", padWay.Value.Steps.Select(d => d.Symbol))}");
+        }
 
         var directionalKeyPad = new[]
         {
@@ -42,7 +49,14 @@ public partial class Part1 : IPart
         };
 
         var buttonsDirectionalKeyPad = ButtonsOnKeyPad(directionalKeyPad);
-        var directionalKeyPadWays = NumericKeyPadWays(buttonsDirectionalKeyPad, directionalKeyPad);
+        var directionalKeyPadWays = KeyPadWays(buttonsDirectionalKeyPad, directionalKeyPad, Directions);
+
+        Console.WriteLine("Directional Key Pad");
+        foreach (var padWay in directionalKeyPadWays.OrderBy(k => k.Key.From).ThenBy(k => k.Key.To))
+        {
+            Console.WriteLine(
+                $"| {padWay.Key.From} - {padWay.Key.To}: {string.Join("", padWay.Value.Steps.Select(d => d.Symbol))}");
+        }
 
         var solve = new Dictionary<string, char[]>();
         foreach (var code in codes)
@@ -99,7 +113,7 @@ public partial class Part1 : IPart
         foreach (var (code, way) in solve)
         {
             output.AppendLine($"Mine      {code}: {string.Join("", way)} {way.Length}");
-            
+
             if (expected.TryGetValue(code, out var expectedWay))
             {
                 output.AppendLine($"Expected: {code}: {string.Join("", expectedWay)} {expectedWay.Length}");
@@ -118,8 +132,8 @@ public partial class Part1 : IPart
         return Task.FromResult(new PartResult($"{sum}", $": {sum}"));
     }
 
-    private static Dictionary<(char From, char To), Way> NumericKeyPadWays(List<char> buttonsNumbericKeyPad,
-        char[][] numericKeyPad)
+    private static Dictionary<(char From, char To), Way> KeyPadWays(List<char> buttonsNumbericKeyPad,
+        char[][] numericKeyPad, List<Direction> directions)
     {
         var numericKeyPadWays = new Dictionary<(char From, char To), Way>();
 
@@ -135,18 +149,26 @@ public partial class Part1 : IPart
                 var from = FindPosition(numericKeyPad, button);
                 var to = FindPosition(numericKeyPad, otherButton);
                 var path = Dijkstra(
-                    Directions.Select(d => new Node(from, d)).ToList(),
-                    Directions.Select(d => new Node(to, d)).ToList(),
-                    n => GetNeighbors(numericKeyPad, n),
+                    directions.Select(d => new Node(from, d)).ToList(),
+                    directions.Select(d => new Node(to, d)).ToList(),
+                    n => GetNeighbors(numericKeyPad, n, directions),
                     (prev, curr) =>
                     {
-                        if (prev.Direction == curr.Direction)
+                        var sum = 1;
+
+                        if (directions.IndexOf(prev.Direction) > directions.IndexOf(curr.Direction))
                         {
-                            return 1;
+                            sum += 1;
                         }
 
-                        return 2;
-                    });
+                        if (prev.Direction != curr.Direction)
+                        {
+                            sum += 1;
+                        }
+
+                        return sum;
+                    }
+                );
 
                 if (path is null)
                 {
@@ -154,7 +176,7 @@ public partial class Part1 : IPart
                 }
 
                 numericKeyPadWays[(button, otherButton)] = new Way(button, otherButton,
-                    path.Value.Nodes.Skip(1).Select(n => n.Direction).OrderBy(d => Directions.IndexOf(d)).ToArray());
+                    path.Value.Nodes.Skip(1).Select(n => n.Direction).ToArray());
             }
         }
 
@@ -190,9 +212,9 @@ public partial class Part1 : IPart
         throw new InvalidOperationException($"Could not find {c}");
     }
 
-    private static IEnumerable<Node> GetNeighbors(char[][] field, Node current)
+    private static IEnumerable<Node> GetNeighbors(char[][] field, Node current, List<Direction> directions)
     {
-        return from direction in Directions
+        return from direction in directions
             select new Node(current.Position + direction, direction)
             into newPosition
             where newPosition.Position.X >= 0 && newPosition.Position.X < field[0].Length &&
