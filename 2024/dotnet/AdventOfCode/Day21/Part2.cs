@@ -62,7 +62,7 @@ public partial class Part2 : IPart
                 fromNumericalKeyPad = c;
             }
 
-            const int amountOfDirectionalKeyPads = 2;
+            const int amountOfDirectionalKeyPads = 25;
             for (var i = 0; i < amountOfDirectionalKeyPads; i++)
             {
                 var fromDirectionalKeyPad = 'A';
