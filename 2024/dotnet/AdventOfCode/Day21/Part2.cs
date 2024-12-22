@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Text;
 using System.Text.RegularExpressions;
 using AdventOfCode.Days;
 using AdventOfCode.Measure;
@@ -22,7 +21,6 @@ public partial class Part2 : IPart
     public Task<PartResult> RunAsync(IMeasure measure, string input)
     {
         var codes = input.Split(Environment.NewLine).Select(l => l).ToArray();
-        Console.WriteLine(string.Join(Environment.NewLine, codes));
 
         var numericKeyPad = new[]
         {
@@ -44,64 +42,79 @@ public partial class Part2 : IPart
         var buttonsDirectionalKeyPad = ButtonsOnKeyPad(directionalKeyPad);
         var directionalKeyPadWays = KeyPadWays(buttonsDirectionalKeyPad, directionalKeyPad, Directions);
 
-        var solve = new Dictionary<string, char[]>();
+        var solve = new Dictionary<string, ulong>();
+        var memory = new Dictionary<(char current, char next, int iteration), ulong>();
         foreach (var code in codes)
         {
-            var totalKeyPadWay = new List<char>();
-
-            var fromNumericalKeyPad = 'A';
-            foreach (var c in code)
-            {
-                if (fromNumericalKeyPad != c)
-                {
-                    var numericKeyPadWay = numericKeyPadWays[(fromNumericalKeyPad, c)];
-                    totalKeyPadWay.AddRange(numericKeyPadWay);
-                }
-
-                totalKeyPadWay.Add('A');
-                fromNumericalKeyPad = c;
-            }
-
-            const int amountOfDirectionalKeyPads = 25;
-            for (var i = 0; i < amountOfDirectionalKeyPads; i++)
-            {
-                var fromDirectionalKeyPad = 'A';
-                var totalDirectionalKeyPadWay = new List<char>();
-                foreach (var symbol in totalKeyPadWay)
-                {
-                    if (fromDirectionalKeyPad != symbol)
-                    {
-                        var directionalKeyPadWay = directionalKeyPadWays[(fromDirectionalKeyPad, symbol)];
-                        totalDirectionalKeyPadWay.AddRange(directionalKeyPadWay);
-                    }
-
-                    totalDirectionalKeyPadWay.Add('A');
-                    fromDirectionalKeyPad = symbol;
-                }
-
-                totalKeyPadWay = totalDirectionalKeyPadWay.ToList();
-                totalDirectionalKeyPadWay.Clear();
-            }
-
-            solve[code] = totalKeyPadWay.ToArray();
+            var numericWay = NumericSolve(code, numericKeyPadWays);
+            var directionalWay = Solve(string.Join("", numericWay), directionalKeyPadWays, 25, memory);
+            Console.WriteLine($"{code}: {directionalWay}");
+            solve[code] = directionalWay;
         }
 
-        var output = new StringBuilder();
-        foreach (var (code, way) in solve)
-        {
-            output.AppendLine($"Mine      {code}: {string.Join("", way)} {way.Length}");
-        }
-
-        Console.WriteLine(output);
-
-        var sum = 0;
+        var sum = 0UL;
         foreach (var (code, way) in solve)
         {
             var number = int.Parse(NumberRegex().Match(code).Value);
-            sum += number * way.Length;
+            sum += (ulong)number * way;
         }
 
         return Task.FromResult(new PartResult($"{sum}", $": {sum}"));
+    }
+
+    private static ulong Solve(string way, Dictionary<(char From, char To), char[]> keyPadWays, int iteration,
+        Dictionary<(char current, char next, int iteration), ulong> memory)
+    {
+        if (iteration <= 0)
+        {
+            return (ulong)way.Length;
+        }
+
+        var currentKey = 'A';
+        var length = 0UL;
+
+        foreach (var nextKey in way)
+        {
+            if (memory.TryGetValue((currentKey, nextKey, iteration), out var cachedValue))
+            {
+                length += cachedValue;
+                currentKey = nextKey;
+                continue;
+            }
+
+            var nextWay = currentKey == nextKey ? [] : keyPadWays[(currentKey, nextKey)];
+            var pathLength = Solve(new string(nextWay) + 'A', keyPadWays, iteration - 1, memory);
+            memory[(currentKey, nextKey, iteration)] = pathLength;
+            length += pathLength;
+            currentKey = nextKey;
+        }
+
+        if (currentKey != 'A')
+        {
+            throw new InvalidOperationException("The robot should point at the 'A' key");
+        }
+
+        return length;
+    }
+
+    private static List<char> NumericSolve(string code, Dictionary<(char From, char To), char[]> keyPadWays)
+    {
+        var totalKeyPadWay = new List<char>();
+
+        var fromNumericalKeyPad = 'A';
+        foreach (var c in code)
+        {
+            if (fromNumericalKeyPad != c)
+            {
+                var numericKeyPadWay = keyPadWays[(fromNumericalKeyPad, c)];
+                totalKeyPadWay.AddRange(numericKeyPadWay);
+            }
+
+            totalKeyPadWay.Add('A');
+            fromNumericalKeyPad = c;
+        }
+
+        return totalKeyPadWay;
     }
 
     private static Dictionary<(char From, char To), char[]> KeyPadWays(List<char> buttonsNumbericKeyPad,
