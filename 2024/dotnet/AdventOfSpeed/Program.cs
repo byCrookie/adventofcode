@@ -2,7 +2,7 @@
 using AdventOfCode.Days;
 using AdventOfCode.Measure;
 using AdventOfSpeed.Utils;
-using Part2 = AdventOfCode.Day18.Part2;
+using Part2 = AdventOfCode.Day23.Part2;
 
 // BenchmarkRunner.Run<Benchmarks>();
 // return;

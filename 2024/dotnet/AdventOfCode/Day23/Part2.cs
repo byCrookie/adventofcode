@@ -15,32 +15,56 @@ public class Part2 : IPart
             .ToList();
 
         var nodes = edges.Select(e => e.From).Union(edges.Select(e => e.To)).ToHashSet();
-        var graph = nodes.ToDictionary(n => n, n => edges.Where(e => e.From == n).Select(e => e.To).ToList());
+        var graph = nodes.ToDictionary(n => n,
+            n => new HashSet<string>(edges.Where(e => e.From == n).Select(e => e.To)));
 
-        var groups = new List<List<string>>();
-        foreach (var node in nodes)
-        {
-            Groups([node], graph[node], graph, groups);
-        }
-        
-        var distinctGroups = groups.Select(g => string.Join("-", g.OrderBy(n => n))).Distinct().ToList();
-        var result = distinctGroups.Count;
-        return Task.FromResult(new PartResult($"{result}", $"Groups of 3 with at least one t: {result}"));
+        var largestGroup = BronKerboschMaxClique(graph);
+
+        var result = string.Join(",", largestGroup.OrderBy(n => n));
+        return Task.FromResult(new PartResult($"{result}", $"Password: {result}"));
     }
-    
-    private static void Groups(List<string> nodes, List<string> connectedNodes, Dictionary<string, List<string>> graph, List<List<string>> groups)
+
+    // https://en.wikipedia.org/wiki/Bron%E2%80%93Kerbosch_algorithm
+    private static HashSet<string> BronKerboschMaxClique(Dictionary<string, HashSet<string>> graph)
     {
-        var linkBackNodes = connectedNodes.Where(connectedNode => nodes.All(n => graph[connectedNode].Contains(n))).ToList();
-        
-        if (groups.Count == 0 || nodes.Count >= groups.Single().Count)
+        var maxClique = new HashSet<string>();
+        var potential = new HashSet<string>(graph.Keys);
+        var excluded = new HashSet<string>();
+
+        BronKerbosch([], potential, excluded, ref maxClique, graph);
+        return maxClique ?? [];
+    }
+
+    private static void BronKerbosch(HashSet<string> clique, HashSet<string> candidates, HashSet<string> skip,
+        ref HashSet<string>? maxClique, Dictionary<string, HashSet<string>> graph)
+    {
+        if (candidates.Count == 0 && skip.Count == 0)
         {
-            groups.Add(nodes);
+            if (clique.Count > maxClique?.Count)
+            {
+                maxClique = [..clique];
+            }
+
             return;
         }
         
-        foreach (var connectedNode in linkBackNodes)
+        var pivot = candidates.Union(skip)
+            .MaxBy(v => candidates.Count(c => graph[v].Contains(c))) ?? candidates.First();
+        
+        var pivotNonNeighbors = candidates.Where(v => !graph[pivot].Contains(v));
+        foreach (var vertex in pivotNonNeighbors)
         {
-            Groups(nodes.Append(connectedNode).ToList(), graph[connectedNode], graph, groups);
+            var vertexNeighbors = graph[vertex];
+            clique.Add(vertex);
+            
+            BronKerbosch(
+                clique,
+                candidates.Intersect(vertexNeighbors).ToHashSet(),
+                skip.Intersect(vertexNeighbors).ToHashSet(), ref maxClique, graph);
+
+            clique.Remove(vertex);
+            candidates.Remove(vertex);
+            skip.Add(vertex);
         }
     }
 
